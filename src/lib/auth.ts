@@ -4,7 +4,7 @@ import {
   scryptSync,
   timingSafeEqual,
 } from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getStore } from "./store";
 import type { PublicUser, User } from "./store/types";
 
@@ -70,15 +70,20 @@ export function verifySessionToken(token: string): string | null {
 
 // ----- Cookie helpers (Next.js server) -----
 
-export async function setSessionCookie(userId: string): Promise<void> {
+// Issues a session for the given user: sets the httpOnly cookie (for the web
+// app) and returns the token string (for the mobile app to store and send as a
+// Bearer header). Both reference the same signed token.
+export async function issueSession(userId: string): Promise<string> {
+  const token = createSessionToken(userId);
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, createSessionToken(userId), {
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
+  return token;
 }
 
 export async function clearSessionCookie(): Promise<void> {
@@ -86,10 +91,24 @@ export async function clearSessionCookie(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-// Returns the full User record for the current session, or null.
-export async function getCurrentUser(): Promise<User | null> {
+// Reads the session token from either the Authorization header
+// (`Bearer <token>`, used by the mobile app) or the session cookie (used by
+// the web app). The header takes precedence.
+async function getSessionToken(): Promise<string | null> {
+  const headerList = await headers();
+  const auth = headerList.get("authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7).trim();
+    if (token) return token;
+  }
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  return cookieStore.get(SESSION_COOKIE)?.value ?? null;
+}
+
+// Returns the full User record for the current session, or null.
+// Works for both cookie-based (web) and token-based (mobile) auth.
+export async function getCurrentUser(): Promise<User | null> {
+  const token = await getSessionToken();
   if (!token) return null;
   const userId = verifySessionToken(token);
   if (!userId) return null;

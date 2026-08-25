@@ -1,7 +1,13 @@
 # 커뮤니티 앱 (Community App)
 
-Next.js(App Router) + TypeScript로 만든 간단한 커뮤니티 앱입니다.
-게시글, 댓글, 좋아요, 회원가입/로그인 기능을 제공합니다.
+게시글, 댓글, 좋아요, 회원가입/로그인 기능을 제공하는 커뮤니티 앱입니다.
+하나의 백엔드를 **웹**과 **모바일 앱**이 함께 사용합니다.
+
+- **`/`** — Next.js(App Router) 백엔드 + 웹 UI. REST API 제공.
+- **`/mobile`** — Expo/React Native 모바일 앱 (iOS · Android). 위 API를 사용.
+
+> 모바일 앱 실행/설정은 [`mobile/README.md`](./mobile/README.md)를 참고하세요.
+> 아래 내용은 Next.js 백엔드(및 웹)에 대한 설명입니다.
 
 ## 기능
 
@@ -15,6 +21,17 @@ Next.js(App Router) + TypeScript로 만든 간단한 커뮤니티 앱입니다.
 - [Next.js 15](https://nextjs.org/) (App Router) + React 19
 - TypeScript
 - 외부 런타임 의존성 없음 — 인증/해싱은 Node.js 내장 `crypto` 사용
+
+## 인증 방식 (웹 + 모바일)
+
+- **웹**: httpOnly 세션 쿠키
+- **모바일**: `Authorization: Bearer <token>` 헤더 (네이티브 앱은 쿠키를 다루기
+  어려우므로 토큰 방식 사용)
+
+로그인·회원가입 API는 응답 본문에 `token`을 함께 반환하고, 동시에 세션 쿠키도
+설정합니다. 백엔드(`src/lib/auth.ts`)는 두 방식을 모두 인식합니다. `/api/*`
+경로에는 CORS 헤더가 적용되어(`src/middleware.ts`) 다른 오리진에서도 호출할 수
+있습니다.
 
 ## 시작하기
 

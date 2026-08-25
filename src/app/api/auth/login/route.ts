@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { setSessionCookie, toPublicUser, verifyPassword } from "@/lib/auth";
+import { issueSession, toPublicUser, verifyPassword } from "@/lib/auth";
 import { getStore } from "@/lib/store";
 
 export async function POST(request: Request) {
@@ -25,6 +25,6 @@ export async function POST(request: Request) {
     );
   }
 
-  await setSessionCookie(user.id);
-  return NextResponse.json({ user: toPublicUser(user) });
+  const token = await issueSession(user.id);
+  return NextResponse.json({ user: toPublicUser(user), token });
 }
