@@ -16,6 +16,38 @@
 - [expo-router](https://docs.expo.dev/router/introduction/) (파일 기반 라우팅)
 - TypeScript
 
+## 📱 내 폰에서 바로 확인하기 (배포 없이)
+
+**폰과 컴퓨터를 같은 Wi‑Fi에 연결**하고, 폰에 [Expo Go] 앱을 설치하세요.
+([iOS App Store](https://apps.apple.com/app/expo-go/id982107779) ·
+[Android Play](https://play.google.com/store/apps/details?id=host.exp.exponent))
+
+컴퓨터에서 저장소를 받은 뒤 **터미널 2개**를 엽니다.
+
+```bash
+# 저장소 받기
+git clone -b claude/community-app-dytpbh https://github.com/kthong77778/community-app.git
+cd community-app
+
+# ── 터미널 1: 백엔드 ──
+npm install
+npm run dev -- -H 0.0.0.0        # http://<PC-IP>:3000 (폰에서 접근 가능)
+
+# ── 터미널 2: 모바일 앱 ──
+cd mobile
+npm install
+npx expo start                    # QR 코드 표시
+```
+
+폰의 **Expo Go**로 터미널의 QR을 스캔하면 앱이 뜹니다. 백엔드 주소는
+자동 감지됩니다(Expo가 잡은 PC의 LAN IP + 포트 3000). 자동 감지가 안 되면
+`EXPO_PUBLIC_API_URL=http://<PC-IP>:3000 npx expo start` 로 직접 지정하세요.
+
+> **잘 안 될 때**
+> - 회사/게스트 Wi‑Fi는 기기 간 통신을 막는 경우가 있습니다(AP isolation).
+>   집 Wi‑Fi나 폰 핫스팟을 쓰거나, 마지막에 실제 배포하면 해결됩니다.
+> - PC 방화벽에서 포트 **3000**(백엔드)·**8081**(Expo)을 허용하세요.
+
 ## 사전 준비: 백엔드 실행
 
 모바일 앱은 백엔드 API가 떠 있어야 동작합니다. 프로젝트 루트에서:
