@@ -41,13 +41,22 @@ Expo Go 앱(또는 시뮬레이터/에뮬레이터)으로 QR 코드를 스캔하
 ## API 주소 설정 (중요)
 
 앱이 바라볼 백엔드 주소는 `EXPO_PUBLIC_API_URL` 환경 변수로 지정합니다.
+`.env.example`를 복사해 값을 채우세요.
 
 ```bash
-# 예: 실제 기기에서 테스트할 때는 PC의 LAN IP를 사용
+cp .env.example .env.local        # .env.local 은 Git에 커밋되지 않음
+# .env.local 안에서 아래처럼 설정 (실제 기기는 PC의 LAN IP 사용)
+#   EXPO_PUBLIC_API_URL=http://192.168.0.10:3000
+npm start
+
+# 또는 한 번만 실행할 때는 인라인으로:
 EXPO_PUBLIC_API_URL=http://192.168.0.10:3000 npm start
 ```
 
-설정하지 않으면 다음 순서로 자동 추정합니다 (`src/api/config.ts`):
+**배포(프로덕션) 빌드**에서는 자동 추정이 동작하지 않으므로 반드시 공개 HTTPS
+주소를 지정해야 합니다 (`EXPO_PUBLIC_API_URL=https://api.your-domain.com`).
+
+설정하지 않으면 **개발 모드에서만** 다음 순서로 자동 추정합니다 (`src/api/config.ts`):
 
 1. Expo 개발 서버 호스트에서 PC의 IP를 추출 → `http://<그 IP>:3000`
 2. Android 에뮬레이터 → `http://10.0.2.2:3000`

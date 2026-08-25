@@ -25,6 +25,7 @@ yarn-error.*
 # macOS
 .DS_Store
 
-# env
+# env (keep the committed template, ignore real values)
 .env
-.env*.local
+.env.*
+!.env.example
