@@ -65,12 +65,14 @@ export class SqliteStore implements Store {
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         content TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT '자랑',
         author_id TEXT NOT NULL,
         author_name TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC, id DESC);
+      CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category, created_at DESC);
 
       CREATE TABLE IF NOT EXISTS likes (
         post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
@@ -89,6 +91,18 @@ export class SqliteStore implements Store {
       );
       CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at);
     `);
+
+    // Additive column migrations for databases created before a column existed.
+    this.addColumnIfMissing("posts", "category", "TEXT NOT NULL DEFAULT '자랑'");
+  }
+
+  private addColumnIfMissing(table: string, column: string, decl: string): void {
+    const cols = this.db.prepare(`PRAGMA table_info(${table})`).all() as {
+      name: string;
+    }[];
+    if (!cols.some((c) => c.name === column)) {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+    }
   }
 
   // ----- Users -----
@@ -179,6 +193,7 @@ export class SqliteStore implements Store {
   async createPost(data: {
     title: string;
     content: string;
+    category: string;
     authorId: string;
     authorName: string;
   }): Promise<PostView> {
@@ -187,6 +202,7 @@ export class SqliteStore implements Store {
       id: randomUUID(),
       title: data.title,
       content: data.content,
+      category: data.category,
       authorId: data.authorId,
       authorName: data.authorName,
       createdAt: now,
@@ -194,13 +210,14 @@ export class SqliteStore implements Store {
     };
     this.db
       .prepare(
-        `INSERT INTO posts (id, title, content, author_id, author_name, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO posts (id, title, content, category, author_id, author_name, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         post.id,
         post.title,
         post.content,
+        post.category,
         post.authorId,
         post.authorName,
         post.createdAt,
@@ -213,18 +230,25 @@ export class SqliteStore implements Store {
     limit: number;
     offset: number;
     currentUserId: string | null;
+    category?: string | null;
   }): Promise<PostPage> {
-    const { limit, offset, currentUserId } = opts;
+    const { limit, offset, currentUserId, category } = opts;
+    const where = category ? `WHERE p.category = ?` : ``;
+    const params: (string | number)[] = [currentUserId ?? ""];
+    if (category) params.push(category);
+    params.push(limit + 1, offset);
+
     // Fetch one extra row to determine whether more pages exist.
+    // rowid (insert order) breaks ties when created_at collides in the same
+    // millisecond, keeping the order stable and deterministic.
     const rows = this.db
       .prepare(
-        // rowid (insert order) breaks ties when created_at collides in the
-        // same millisecond, keeping the order stable and deterministic.
         `${POST_VIEW_SELECT}
+         ${where}
          ORDER BY p.created_at DESC, p.rowid DESC
          LIMIT ? OFFSET ?`,
       )
-      .all(currentUserId ?? "", limit + 1, offset) as PostViewRow[];
+      .all(...params) as PostViewRow[];
 
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit).map(mapPostView);
@@ -369,6 +393,7 @@ interface PostRow {
   id: string;
   title: string;
   content: string;
+  category: string;
   author_id: string;
   author_name: string;
   created_at: string;
@@ -400,6 +425,7 @@ function mapPost(r: PostRow): Post {
     id: r.id,
     title: r.title,
     content: r.content,
+    category: r.category,
     authorId: r.author_id,
     authorName: r.author_name,
     createdAt: r.created_at,

@@ -11,6 +11,7 @@ export interface PostView {
   id: string;
   title: string;
   content: string;
+  category: string;
   authorId: string;
   authorName: string;
   likeCount: number;

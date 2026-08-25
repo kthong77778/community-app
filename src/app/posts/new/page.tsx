@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { LIMITS } from "@/lib/validation";
+import { LIMITS, POST_CATEGORIES } from "@/lib/validation";
 
 export default function NewPostPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState<string>(POST_CATEGORIES[0]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,7 +30,7 @@ export default function NewPostPage() {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content }),
+        body: JSON.stringify({ title, content, category }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -56,6 +57,21 @@ export default function NewPostPage() {
       <div className="form-card">
         {error && <div className="alert">{error}</div>}
         <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>카테고리</label>
+            <div className="cat-select">
+              {POST_CATEGORIES.map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  className={`cat-option ${category === c ? "on" : ""}`}
+                  onClick={() => setCategory(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="field">
             <label htmlFor="title">제목</label>
             <input

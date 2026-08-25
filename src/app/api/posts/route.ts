@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getStore } from "@/lib/store";
-import { cleanText, LIMITS } from "@/lib/validation";
+import {
+  cleanText,
+  LIMITS,
+  normalizeCategory,
+  POST_CATEGORIES,
+} from "@/lib/validation";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -15,10 +20,18 @@ export async function GET(request: Request) {
   const limit = clampInt(url.searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
   const offset = clampInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
 
+  // Optional category filter; ignored unless it is a known category.
+  const rawCategory = url.searchParams.get("category");
+  const category =
+    rawCategory && POST_CATEGORIES.includes(rawCategory as never)
+      ? rawCategory
+      : null;
+
   const page = await getStore().listPostViews({
     limit,
     offset,
     currentUserId: user?.id ?? null,
+    category,
   });
   return NextResponse.json(page);
 }
@@ -49,6 +62,7 @@ export async function POST(request: Request) {
   const post = await getStore().createPost({
     title,
     content,
+    category: normalizeCategory(body?.category),
     authorId: user.id,
     authorName: user.username,
   });

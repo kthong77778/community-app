@@ -95,6 +95,9 @@ export default function PostDetailPage() {
       </Link>
 
       <article className="post-detail">
+        <span className={`badge badge-${post.category}`} style={{ marginBottom: 10, display: "inline-block" }}>
+          {post.category}
+        </span>
         <h1>{post.title}</h1>
         <div className="post-meta">
           <span>{post.authorName}</span>

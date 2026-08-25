@@ -20,6 +20,7 @@ export interface Post {
   id: string;
   title: string;
   content: string;
+  category: string; // one of POST_CATEGORIES (자랑/질문/후기/홍보)
   authorId: string;
   authorName: string;
   createdAt: string;

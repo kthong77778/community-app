@@ -36,14 +36,17 @@ export interface Store {
   createPost(data: {
     title: string;
     content: string;
+    category: string;
     authorId: string;
     authorName: string;
   }): Promise<PostView>;
   // Paginated feed (newest first) with counts computed in SQL.
+  // Pass `category` to filter to a single category.
   listPostViews(opts: {
     limit: number;
     offset: number;
     currentUserId: string | null;
+    category?: string | null;
   }): Promise<PostPage>;
   getPostView(id: string, currentUserId: string | null): Promise<PostView | null>;
   getPost(id: string): Promise<Post | null>;

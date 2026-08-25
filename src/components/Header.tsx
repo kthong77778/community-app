@@ -18,7 +18,7 @@ export function Header() {
     <header className="site-header">
       <div className="inner">
         <Link href="/" className="brand">
-          커뮤니티
+          🐾 댕냥마을
         </Link>
         <div className="header-actions">
           {loading ? null : user ? (

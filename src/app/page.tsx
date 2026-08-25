@@ -2,17 +2,25 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
 import { getStore } from "@/lib/store";
+import { POST_CATEGORIES } from "@/lib/validation";
 
 // Always render fresh — the database changes as users post.
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category: raw } = await searchParams;
+  const category = POST_CATEGORIES.includes(raw as never) ? raw! : null;
+
   const user = await getCurrentUser();
-  // The web view shows the most recent posts; the mobile app paginates.
   const { posts } = await getStore().listPostViews({
     limit: 50,
     offset: 0,
     currentUserId: user?.id ?? null,
+    category,
   });
 
   return (
@@ -24,6 +32,21 @@ export default async function HomePage() {
         </Link>
       </div>
 
+      <nav className="filters">
+        <Link href="/" className={`filter-pill ${!category ? "active" : ""}`}>
+          전체
+        </Link>
+        {POST_CATEGORIES.map((c) => (
+          <Link
+            key={c}
+            href={`/?category=${encodeURIComponent(c)}`}
+            className={`filter-pill ${category === c ? "active" : ""}`}
+          >
+            {c}
+          </Link>
+        ))}
+      </nav>
+
       {posts.length === 0 ? (
         <div className="empty">
           아직 게시글이 없습니다.
@@ -34,7 +57,10 @@ export default async function HomePage() {
           {posts.map((p) => (
             <Link key={p.id} href={`/posts/${p.id}`}>
               <article className="post-card">
-                <h3>{p.title}</h3>
+                <div className="card-top">
+                  <span className={`badge badge-${p.category}`}>{p.category}</span>
+                  <h3>{p.title}</h3>
+                </div>
                 <p className="post-excerpt">{p.content}</p>
                 <div className="post-meta">
                   <span>{p.authorName}</span>

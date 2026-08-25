@@ -60,6 +60,7 @@ describe("posts + likes", () => {
     const post = await store.createPost({
       title: "t",
       content: "c",
+      category: "자랑",
       authorId: u.id,
       authorName: u.username,
     });
@@ -74,6 +75,7 @@ describe("posts + likes", () => {
     const post = await store.createPost({
       title: "t",
       content: "c",
+      category: "자랑",
       authorId: author.id,
       authorName: author.username,
     });
@@ -102,6 +104,7 @@ describe("posts + likes", () => {
       await store.createPost({
         title: `p${i}`,
         content: "c",
+        category: "자랑",
         authorId: u.id,
         authorName: u.username,
       });
@@ -121,6 +124,7 @@ describe("posts + likes", () => {
     const post = await store.createPost({
       title: "t",
       content: "c",
+      category: "자랑",
       authorId: u.id,
       authorName: u.username,
     });
@@ -137,12 +141,47 @@ describe("posts + likes", () => {
   });
 });
 
+describe("categories", () => {
+  it("stores the category and filters by it", async () => {
+    const u = await makeUser();
+    for (const cat of ["자랑", "질문", "자랑", "홍보"]) {
+      await store.createPost({
+        title: cat,
+        content: "c",
+        category: cat,
+        authorId: u.id,
+        authorName: u.username,
+      });
+    }
+    const all = await store.listPostViews({ limit: 20, offset: 0, currentUserId: null });
+    assert.equal(all.posts.length, 4);
+
+    const brag = await store.listPostViews({
+      limit: 20,
+      offset: 0,
+      currentUserId: null,
+      category: "자랑",
+    });
+    assert.equal(brag.posts.length, 2);
+    assert.ok(brag.posts.every((p) => p.category === "자랑"));
+
+    const promo = await store.listPostViews({
+      limit: 20,
+      offset: 0,
+      currentUserId: null,
+      category: "홍보",
+    });
+    assert.equal(promo.posts.length, 1);
+  });
+});
+
 describe("comments", () => {
   it("adds, lists, and counts comments", async () => {
     const u = await makeUser();
     const post = await store.createPost({
       title: "t",
       content: "c",
+      category: "자랑",
       authorId: u.id,
       authorName: u.username,
     });
@@ -162,6 +201,7 @@ describe("comments", () => {
     const post = await store.createPost({
       title: "t",
       content: "c",
+      category: "자랑",
       authorId: u.id,
       authorName: u.username,
     });

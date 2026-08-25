@@ -18,7 +18,7 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="feed" options={{ title: "커뮤니티" }} />
+          <Stack.Screen name="feed" options={{ title: "댕냥마을" }} />
           <Stack.Screen name="new" options={{ title: "글쓰기", presentation: "modal" }} />
           <Stack.Screen name="post/[id]" options={{ title: "게시글" }} />
           <Stack.Screen name="login" options={{ title: "로그인" }} />

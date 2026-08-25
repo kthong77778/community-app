@@ -1,5 +1,17 @@
 // Small input-validation helpers shared by the API routes.
 
+// Community post categories.
+//  자랑 = 우리 아이 자랑 / 질문 = 궁금해요 / 후기 = 장소·용품 후기 / 홍보 = 가게·행사 홍보
+export const POST_CATEGORIES = ["자랑", "질문", "후기", "홍보"] as const;
+export type PostCategory = (typeof POST_CATEGORIES)[number];
+export const DEFAULT_CATEGORY: PostCategory = "자랑";
+
+export function normalizeCategory(value: unknown): PostCategory {
+  return POST_CATEGORIES.includes(value as PostCategory)
+    ? (value as PostCategory)
+    : DEFAULT_CATEGORY;
+}
+
 export const LIMITS = {
   usernameMin: 3,
   usernameMax: 20,

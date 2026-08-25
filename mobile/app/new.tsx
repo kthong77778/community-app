@@ -12,12 +12,13 @@ import {
 } from "react-native";
 import { ApiError, apiRequest } from "@/api/client";
 import type { PostView } from "@/api/types";
-import { colors, radius } from "@/theme";
+import { CATEGORIES, catStyle, colors, radius } from "@/theme";
 
 export default function NewPostScreen() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,7 +29,7 @@ export default function NewPostScreen() {
     try {
       const data = await apiRequest<{ post: PostView }>("/api/posts", {
         method: "POST",
-        body: { title, content },
+        body: { title, content, category },
       });
       // Replace the modal with the created post's detail screen.
       router.replace(`/post/${data.post.id}`);
@@ -52,6 +53,29 @@ export default function NewPostScreen() {
             <Text style={styles.alertText}>{error}</Text>
           </View>
         )}
+        <Text style={styles.label}>카테고리</Text>
+        <View style={styles.catRow}>
+          {CATEGORIES.map((c) => {
+            const active = c === category;
+            const cs = catStyle(c);
+            return (
+              <Pressable
+                key={c}
+                onPress={() => setCategory(c)}
+                style={[
+                  styles.catChip,
+                  { borderColor: active ? cs.fg : colors.border },
+                  active && { backgroundColor: cs.bg },
+                ]}
+              >
+                <Text style={[styles.catChipText, active && { color: cs.fg }]}>
+                  {c}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <Text style={styles.label}>제목</Text>
         <TextInput
           style={styles.input}
@@ -94,6 +118,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: 16 },
   label: { fontSize: 13, fontWeight: "600", color: colors.text, marginBottom: 6, marginTop: 12 },
+  catRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  catChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: colors.surface,
+  },
+  catChipText: { fontSize: 13.5, fontWeight: "600", color: colors.textMuted },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

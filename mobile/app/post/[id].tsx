@@ -17,7 +17,7 @@ import { ApiError, apiRequest } from "@/api/client";
 import type { Comment, PostView } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
-import { colors, radius } from "@/theme";
+import { catStyle, colors, radius } from "@/theme";
 
 interface PostResponse {
   post: PostView;
@@ -172,6 +172,11 @@ export default function PostDetailScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.postCard}>
+          <View style={[styles.badge, { backgroundColor: catStyle(post.category).bg }]}>
+            <Text style={[styles.badgeText, { color: catStyle(post.category).fg }]}>
+              {post.category}
+            </Text>
+          </View>
           <Text style={styles.title}>{post.title}</Text>
           <View style={styles.meta}>
             <Text style={styles.metaText}>{post.authorName}</Text>
@@ -274,6 +279,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: 20,
   },
+  badge: { alignSelf: "flex-start", paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, marginBottom: 10 },
+  badgeText: { fontSize: 12, fontWeight: "700" },
   title: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 8 },
   meta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   metaText: { fontSize: 13, color: colors.textMuted },

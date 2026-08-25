@@ -1,15 +1,18 @@
 :root {
-  --bg: #f6f7f9;
+  --bg: #fbf6f0;
   --surface: #ffffff;
-  --border: #e5e7eb;
-  --text: #1f2937;
-  --text-muted: #6b7280;
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
+  --surface-2: #fdf7f1;
+  --border: #eee1d4;
+  --text: #2c241d;
+  --text-muted: #8c7b6c;
+  --primary: #ea5c33;
+  --primary-hover: #d24d28;
+  --primary-soft: #fdeadf;
+  --primary-strong: #c2410c;
   --danger: #dc2626;
   --like: #e11d48;
-  --radius: 12px;
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(70, 40, 20, 0.05), 0 1px 2px rgba(70, 40, 20, 0.04);
 }
 
 * {
@@ -359,6 +362,49 @@ main {
   color: var(--text-muted);
 }
 .auth-switch a {
-  color: var(--primary);
+  color: var(--primary-strong);
   font-weight: 600;
 }
+
+/* ----- Category badges + filter ----- */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.badge-자랑 { background: #fef3c7; color: #b45309; }
+.badge-질문 { background: #dbeafe; color: #1d4ed8; }
+.badge-후기 { background: #d1fae5; color: #047857; }
+.badge-홍보 { background: #fce7f3; color: #be185d; }
+
+.card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.card-top h3 { margin: 0; }
+
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-pill {
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.filter-pill:hover { background: var(--surface-2); }
+.filter-pill.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.cat-select { display: flex; gap: 8px; flex-wrap: wrap; }
+.cat-option {
+  padding: 8px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cat-option.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-strong); }
