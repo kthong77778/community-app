@@ -1,6 +1,6 @@
 // Domain models shared across the app.
-// These are storage-agnostic: the same shapes are returned whether the data
-// comes from the JSON file store today or a real database later.
+// Storage-agnostic: the same shapes are returned whether the data comes from
+// SQLite today or another SQL database later.
 
 export interface User {
   id: string;
@@ -22,7 +22,6 @@ export interface Post {
   content: string;
   authorId: string;
   authorName: string;
-  likedBy: string[]; // user ids who liked this post
   createdAt: string;
   updatedAt: string;
 }
@@ -36,9 +35,22 @@ export interface Comment {
   createdAt: string;
 }
 
-// A post enriched with counts for list/detail views.
+// A post enriched with counts for list/detail views. Computed in SQL.
 export interface PostView extends Post {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+}
+
+// Result of toggling a like.
+export interface LikeState {
+  likeCount: number;
+  likedByMe: boolean;
+}
+
+// A page of posts for the feed.
+export interface PostPage {
+  posts: PostView[];
+  hasMore: boolean;
+  nextOffset: number;
 }

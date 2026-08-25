@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { issueSession, toPublicUser, verifyPassword } from "@/lib/auth";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { getStore } from "@/lib/store";
 
 export async function POST(request: Request) {
@@ -11,6 +12,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "아이디와 비밀번호를 입력해 주세요." },
       { status: 400 },
+    );
+  }
+
+  // Throttle login attempts per IP+username to slow brute-force (5 / 5 min).
+  const ip = await clientIp();
+  const rl = rateLimit(`login:${ip}:${username.toLowerCase()}`, 5, 5 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
     );
   }
 

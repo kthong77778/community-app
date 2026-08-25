@@ -12,13 +12,10 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   }
 
-  const post = await getStore().toggleLike(id, user.id);
-  if (!post) {
+  const result = await getStore().toggleLike(id, user.id);
+  if (!result) {
     return NextResponse.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
   }
 
-  return NextResponse.json({
-    likeCount: post.likedBy.length,
-    likedByMe: post.likedBy.includes(user.id),
-  });
+  return NextResponse.json(result);
 }

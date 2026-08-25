@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
-import { listPostViews } from "@/lib/posts";
+import { getStore } from "@/lib/store";
 
-// Always render fresh — the JSON store changes as users post.
+// Always render fresh — the database changes as users post.
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
-  const posts = await listPostViews(user?.id ?? null);
+  // The web view shows the most recent posts; the mobile app paginates.
+  const { posts } = await getStore().listPostViews({
+    limit: 50,
+    offset: 0,
+    currentUserId: user?.id ?? null,
+  });
 
   return (
     <>

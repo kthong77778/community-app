@@ -1,5 +1,4 @@
 import {
-  createHmac,
   randomBytes,
   scryptSync,
   timingSafeEqual,
@@ -9,12 +8,7 @@ import { getStore } from "./store";
 import type { PublicUser, User } from "./store/types";
 
 export const SESSION_COOKIE = "session";
-const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days (seconds)
-
-// In production set AUTH_SECRET to a long random string. The dev fallback keeps
-// local sessions working without configuration, but is not secret.
-const SECRET =
-  process.env.AUTH_SECRET ?? "dev-insecure-secret-change-me-in-production";
+const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 days (seconds), matches the store's TTL
 
 // ----- Password hashing (scrypt) -----
 
@@ -33,48 +27,28 @@ export function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(hashBuf, derived);
 }
 
-// ----- Session tokens (HMAC-signed cookie value) -----
-// Token format: base64url(payload).base64url(hmac)
-// payload = `${userId}.${expiresAtMs}`
+// ----- Sessions -----
+// Tokens are opaque random strings created and stored server-side (see the
+// Store). They carry no signature and no user data, so there is no secret to
+// leak and a token can be revoked at logout. Web reads it from an httpOnly
+// cookie; mobile sends it as `Authorization: Bearer <token>`.
 
-function sign(value: string): string {
-  return createHmac("sha256", SECRET).update(value).digest("base64url");
-}
-
-export function createSessionToken(userId: string): string {
-  const expires = Date.now() + SESSION_MAX_AGE * 1000;
-  const payload = `${userId}.${expires}`;
-  const encoded = Buffer.from(payload).toString("base64url");
-  return `${encoded}.${sign(encoded)}`;
-}
-
-export function verifySessionToken(token: string): string | null {
-  const [encoded, signature] = token.split(".");
-  if (!encoded || !signature) return null;
-
-  const expected = sign(encoded);
-  const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
-    return null;
+// Reads the token from the Authorization header (mobile) or the cookie (web).
+async function readToken(): Promise<string | null> {
+  const headerList = await headers();
+  const auth = headerList.get("authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const token = auth.slice(7).trim();
+    if (token) return token;
   }
-
-  const payload = Buffer.from(encoded, "base64url").toString("utf8");
-  const [userId, expiresStr] = payload.split(".");
-  const expires = Number(expiresStr);
-  if (!userId || !Number.isFinite(expires) || Date.now() > expires) {
-    return null;
-  }
-  return userId;
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_COOKIE)?.value ?? null;
 }
 
-// ----- Cookie helpers (Next.js server) -----
-
-// Issues a session for the given user: sets the httpOnly cookie (for the web
-// app) and returns the token string (for the mobile app to store and send as a
-// Bearer header). Both reference the same signed token.
+// Creates a session for the user, sets the web cookie, and returns the token
+// (for the mobile client to store).
 export async function issueSession(userId: string): Promise<string> {
-  const token = createSessionToken(userId);
+  const token = await getStore().createSession(userId);
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -86,33 +60,20 @@ export async function issueSession(userId: string): Promise<string> {
   return token;
 }
 
-export async function clearSessionCookie(): Promise<void> {
+// Revokes the current session (logout) and clears the cookie.
+export async function endSession(): Promise<void> {
+  const token = await readToken();
+  if (token) await getStore().deleteSession(token);
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
 }
 
-// Reads the session token from either the Authorization header
-// (`Bearer <token>`, used by the mobile app) or the session cookie (used by
-// the web app). The header takes precedence.
-async function getSessionToken(): Promise<string | null> {
-  const headerList = await headers();
-  const auth = headerList.get("authorization");
-  if (auth?.startsWith("Bearer ")) {
-    const token = auth.slice(7).trim();
-    if (token) return token;
-  }
-  const cookieStore = await cookies();
-  return cookieStore.get(SESSION_COOKIE)?.value ?? null;
-}
-
-// Returns the full User record for the current session, or null.
-// Works for both cookie-based (web) and token-based (mobile) auth.
+// Returns the User for the current request, or null. Works for cookie (web) and
+// bearer-token (mobile) auth.
 export async function getCurrentUser(): Promise<User | null> {
-  const token = await getSessionToken();
+  const token = await readToken();
   if (!token) return null;
-  const userId = verifySessionToken(token);
-  if (!userId) return null;
-  return getStore().getUserById(userId);
+  return getStore().getSessionUser(token);
 }
 
 export function toPublicUser(user: User): PublicUser {

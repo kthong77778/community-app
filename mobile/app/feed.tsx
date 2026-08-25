@@ -10,10 +10,12 @@ import {
   View,
 } from "react-native";
 import { apiRequest } from "@/api/client";
-import type { PostView } from "@/api/types";
+import type { PostPage, PostView } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
 import { colors, radius } from "@/theme";
+
+const PAGE_SIZE = 20;
 
 export default function FeedScreen() {
   const router = useRouter();
@@ -21,11 +23,19 @@ export default function FeedScreen() {
   const [posts, setPosts] = useState<PostView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
 
-  const load = useCallback(async () => {
+  // Load the first page (also used by focus reload and pull-to-refresh).
+  const loadFirst = useCallback(async () => {
     try {
-      const data = await apiRequest<{ posts: PostView[] }>("/api/posts");
+      const data = await apiRequest<PostPage>(
+        `/api/posts?limit=${PAGE_SIZE}&offset=0`,
+      );
       setPosts(data.posts);
+      setHasMore(data.hasMore);
+      setNextOffset(data.nextOffset);
     } catch {
       // Keep whatever we already show; a pull-to-refresh can retry.
     } finally {
@@ -37,14 +47,36 @@ export default function FeedScreen() {
   // Reload whenever the feed regains focus (e.g. after posting).
   useFocusEffect(
     useCallback(() => {
-      void load();
-    }, [load]),
+      void loadFirst();
+    }, [loadFirst]),
   );
 
   function onRefresh() {
     setRefreshing(true);
-    void load();
+    void loadFirst();
   }
+
+  // Append the next page when the user scrolls to the end.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const data = await apiRequest<PostPage>(
+        `/api/posts?limit=${PAGE_SIZE}&offset=${nextOffset}`,
+      );
+      // De-dupe in case a new post shifted offsets between pages.
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...data.posts.filter((p) => !seen.has(p.id))];
+      });
+      setHasMore(data.hasMore);
+      setNextOffset(data.nextOffset);
+    } catch {
+      // ignore; user can scroll again to retry
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, nextOffset]);
 
   function onWrite() {
     if (!user) {
@@ -91,6 +123,13 @@ export default function FeedScreen() {
               <Text style={styles.emptyText}>아직 게시글이 없습니다.</Text>
               <Text style={styles.emptyText}>첫 글을 남겨보세요!</Text>
             </View>
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator style={{ marginVertical: 16 }} color={colors.primary} />
+            ) : null
           }
           renderItem={({ item }) => (
             <Pressable

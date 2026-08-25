@@ -28,3 +28,10 @@ export interface Comment {
   authorName: string;
   createdAt: string;
 }
+
+// A page of feed posts, as returned by GET /api/posts.
+export interface PostPage {
+  posts: PostView[];
+  hasMore: boolean;
+  nextOffset: number;
+}

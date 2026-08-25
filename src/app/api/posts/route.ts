@@ -1,14 +1,26 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { listPostViews, toPostView } from "@/lib/posts";
 import { getStore } from "@/lib/store";
 import { cleanText, LIMITS } from "@/lib/validation";
 
-// GET /api/posts — list all posts (newest first).
-export async function GET() {
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 50;
+
+// GET /api/posts?limit=20&offset=0 — paginated feed (newest first).
+// Returns { posts, hasMore, nextOffset }.
+export async function GET(request: Request) {
   const user = await getCurrentUser();
-  const posts = await listPostViews(user?.id ?? null);
-  return NextResponse.json({ posts });
+  const url = new URL(request.url);
+
+  const limit = clampInt(url.searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
+  const offset = clampInt(url.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
+
+  const page = await getStore().listPostViews({
+    limit,
+    offset,
+    currentUserId: user?.id ?? null,
+  });
+  return NextResponse.json(page);
 }
 
 // POST /api/posts — create a post (requires login).
@@ -41,5 +53,16 @@ export async function POST(request: Request) {
     authorName: user.username,
   });
 
-  return NextResponse.json({ post: toPostView(post, 0, user.id) }, { status: 201 });
+  return NextResponse.json({ post }, { status: 201 });
+}
+
+function clampInt(
+  raw: string | null,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
+  const n = raw === null ? NaN : Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(n)));
 }

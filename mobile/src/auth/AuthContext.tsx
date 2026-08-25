@@ -6,7 +6,11 @@ import {
   useMemo,
   useState,
 } from "react";
-import { apiRequest, setAuthToken } from "@/api/client";
+import {
+  apiRequest,
+  setAuthToken,
+  setUnauthorizedHandler,
+} from "@/api/client";
 import type { PublicUser } from "@/api/types";
 import { deleteToken, getToken, saveToken } from "@/lib/tokenStorage";
 
@@ -56,6 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     })();
+  }, []);
+
+  // If a request reports the session is no longer valid, clear it locally.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setAuthToken(null);
+      void deleteToken(TOKEN_KEY);
+      setUser(null);
+    });
+    return () => setUnauthorizedHandler(null);
   }, []);
 
   const persist = useCallback(async (res: AuthResponse) => {

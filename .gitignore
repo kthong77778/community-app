@@ -11,8 +11,11 @@ next-env.d.ts
 # production
 /build
 
-# local data (JSON store) — keep the folder, ignore the data files
+# local data — keep the folder, ignore the database files
 /data/*.json
+/data/*.db
+/data/*.db-wal
+/data/*.db-shm
 
 # misc
 .DS_Store

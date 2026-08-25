@@ -20,6 +20,15 @@ export function setAuthToken(token: string | null): void {
   authToken = token;
 }
 
+// Called when a request fails with 401 while we believed we were logged in
+// (i.e. the session expired or was revoked server-side). The auth layer
+// registers a handler that clears the stored session.
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "DELETE";
   body?: unknown;
@@ -51,6 +60,16 @@ export async function apiRequest<T>(
   const data = text ? (JSON.parse(text) as unknown) : {};
 
   if (!res.ok) {
+    // A 401 on a non-auth endpoint while a token is set means our session
+    // expired or was revoked — clear it so the UI reflects logged-out state.
+    if (
+      res.status === 401 &&
+      authToken &&
+      !path.startsWith("/api/auth/") &&
+      onUnauthorized
+    ) {
+      onUnauthorized();
+    }
     const message =
       (data as { error?: string }).error ?? "요청을 처리하지 못했습니다.";
     throw new ApiError(res.status, message);

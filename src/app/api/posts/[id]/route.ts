@@ -1,24 +1,20 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { toPostView } from "@/lib/posts";
 import { getStore } from "@/lib/store";
 
 type Params = { params: Promise<{ id: string }> };
 
-// GET /api/posts/:id — single post with comments.
+// GET /api/posts/:id — single post (with counts) plus its comments.
 export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
   const store = getStore();
-  const post = await store.getPost(id);
+  const user = await getCurrentUser();
+  const post = await store.getPostView(id, user?.id ?? null);
   if (!post) {
     return NextResponse.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
   }
-  const user = await getCurrentUser();
   const comments = await store.listComments(id);
-  return NextResponse.json({
-    post: toPostView(post, comments.length, user?.id ?? null),
-    comments,
-  });
+  return NextResponse.json({ post, comments });
 }
 
 // DELETE /api/posts/:id — author only.
