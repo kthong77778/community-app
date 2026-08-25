@@ -1,4 +1,3 @@
-import * as SecureStore from "expo-secure-store";
 import {
   createContext,
   useCallback,
@@ -9,6 +8,7 @@ import {
 } from "react";
 import { apiRequest, setAuthToken } from "@/api/client";
 import type { PublicUser } from "@/api/types";
+import { deleteToken, getToken, saveToken } from "@/lib/tokenStorage";
 
 const TOKEN_KEY = "session_token";
 
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        const token = await getToken(TOKEN_KEY);
         if (token) {
           setAuthToken(token);
           const { user: me } = await apiRequest<{ user: PublicUser | null }>(
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             // Token invalid/expired — clear it.
             setAuthToken(null);
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
+            await deleteToken(TOKEN_KEY);
           }
         }
       } catch {
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const persist = useCallback(async (res: AuthResponse) => {
     setAuthToken(res.token);
-    await SecureStore.setItemAsync(TOKEN_KEY, res.token);
+    await saveToken(TOKEN_KEY, res.token);
     setUser(res.user);
   }, []);
 
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Ignore network errors on logout — clear locally regardless.
     }
     setAuthToken(null);
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await deleteToken(TOKEN_KEY);
     setUser(null);
   }, []);
 
