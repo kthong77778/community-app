@@ -534,3 +534,42 @@ main {
 }
 .offer-price { font-size: 19px; font-weight: 800; color: var(--text); margin-top: 3px; }
 .offer-save { font-size: 13px; color: var(--text-muted); margin-top: 4px; text-align: center; }
+
+/* 채팅 */
+.chat-list { display: flex; flex-direction: column; gap: 2px; }
+.chat-row { display: flex; align-items: center; gap: 12px; padding: 12px 6px; border-bottom: 1px solid var(--border); }
+.chat-row:hover { background: var(--surface-2); }
+.chat-thumb { width: 48px; height: 48px; border-radius: 12px; overflow: hidden; flex: 0 0 auto;
+  display: grid; place-items: center; background: var(--surface-2); }
+.chat-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.chat-thumb-emoji { font-size: 24px; }
+.chat-main { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.chat-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.chat-name { font-weight: 700; font-size: 15px; color: var(--text); }
+.chat-time { font-size: 12px; color: var(--text-muted); flex: 0 0 auto; }
+.chat-item-name { font-size: 12.5px; color: var(--primary-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-last { font-size: 13.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.chatroom-head { margin-bottom: 14px; }
+.chat-with { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 10px; }
+.chat-item-banner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 12px; background: var(--surface); }
+.chat-item-banner:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.chat-item-thumb { width: 40px; height: 40px; border-radius: 9px; overflow: hidden; flex: 0 0 auto;
+  display: grid; place-items: center; background: var(--surface-2); font-size: 20px; }
+.chat-item-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.chat-item-info { display: flex; flex-direction: column; min-width: 0; }
+.chat-item-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-item-price { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+
+.messages { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 16px; min-height: 220px; }
+.msg-row { display: flex; }
+.msg-row.mine { justify-content: flex-end; }
+.msg-row.other { justify-content: flex-start; }
+.bubble { max-width: 76%; padding: 9px 13px; border-radius: 16px; font-size: 14.5px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word; }
+.msg-row.other .bubble { background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 5px; color: var(--text); }
+.msg-row.mine .bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 5px; }
+.msg-form { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 10px 0;
+  background: var(--bg); border-top: 1px solid var(--border); }
+.msg-form .input { flex: 1; }

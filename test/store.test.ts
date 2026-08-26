@@ -471,6 +471,79 @@ describe("shopping (products + offers)", () => {
   });
 });
 
+describe("chat (conversations + messages)", () => {
+  async function seedItem(sellerId = "seller") {
+    return store.createItem({
+      title: "강아지 방석",
+      description: "포근해요",
+      price: 15000,
+      category: "기타",
+      imageUrl: "",
+      location: "서울",
+      sellerId,
+      sellerName: sellerId,
+    });
+  }
+
+  it("creates a conversation once and reuses it (dedupe)", async () => {
+    const item = await seedItem("seller");
+    const c1 = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    const c2 = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    assert.equal(c1.id, c2.id, "same buyer+item reuses the thread");
+
+    // A different buyer gets a separate thread.
+    const c3 = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer2", sellerId: "seller" });
+    assert.notEqual(c3.id, c1.id);
+  });
+
+  it("appends messages oldest-first within a thread", async () => {
+    const item = await seedItem("seller");
+    const c = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    await store.sendMessage({ conversationId: c.id, senderId: "buyer", text: "안녕하세요, 구매 가능할까요?" });
+    await store.sendMessage({ conversationId: c.id, senderId: "seller", text: "네 가능합니다!" });
+
+    const msgs = await store.listMessages(c.id);
+    assert.equal(msgs.length, 2);
+    assert.equal(msgs[0].text, "안녕하세요, 구매 가능할까요?"); // oldest first
+    assert.equal(msgs[1].senderId, "seller");
+  });
+
+  it("lists a thread with the other participant, item + last message", async () => {
+    const item = await seedItem("seller");
+    const c = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    await store.sendMessage({ conversationId: c.id, senderId: "buyer", text: "질문 있어요" });
+
+    const forBuyer = await store.listConversations("buyer");
+    assert.equal(forBuyer.length, 1);
+    assert.equal(forBuyer[0].otherUserId, "seller"); // buyer sees the seller
+    assert.equal(forBuyer[0].itemTitle, "강아지 방석");
+    assert.equal(forBuyer[0].lastMessageText, "질문 있어요");
+
+    const forSeller = await store.listConversations("seller");
+    assert.equal(forSeller[0].otherUserId, "buyer"); // seller sees the buyer
+  });
+
+  it("restricts a conversation to its participants", async () => {
+    const item = await seedItem("seller");
+    const c = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    assert.ok(await store.getConversationForUser(c.id, "buyer"));
+    assert.ok(await store.getConversationForUser(c.id, "seller"));
+    assert.equal(await store.getConversationForUser(c.id, "stranger"), null);
+  });
+
+  it("keeps the thread after the item is deleted (itemTitle → null)", async () => {
+    const item = await seedItem("seller");
+    const c = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    await store.sendMessage({ conversationId: c.id, senderId: "buyer", text: "안녕" });
+
+    await store.deleteItem(item.id);
+    const list = await store.listConversations("buyer");
+    assert.equal(list.length, 1);
+    assert.equal(list[0].itemTitle, null); // item gone, thread stays
+    assert.equal(list[0].lastMessageText, "안녕");
+  });
+});
+
 describe("comments", () => {
   it("adds, lists, and counts comments", async () => {
     const u = await makeUser();

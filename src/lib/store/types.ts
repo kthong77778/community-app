@@ -149,3 +149,34 @@ export interface ProductView extends Product {
   lowestPrice: number; // 0 when no offers
   highestPrice: number; // 0 when no offers
 }
+
+// ----- Chat (1:1 메시지) -----
+// A buyer↔seller conversation, optionally scoped to a marketplace item.
+// buyerId/sellerId are user ids (= usernames).
+export interface Conversation {
+  id: string;
+  itemId: string | null; // null if the item was deleted or a general chat
+  buyerId: string;
+  sellerId: string;
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: string;
+}
+
+// A conversation enriched for list/detail, relative to the viewing user:
+// the other participant plus a summary of the linked item and last message.
+export interface ConversationView extends Conversation {
+  otherUserId: string; // the participant who isn't the viewer (display name)
+  itemTitle: string | null; // null when the item was deleted
+  itemImageUrl: string | null;
+  itemPrice: number | null;
+  itemStatus: string | null;
+  lastMessageText: string | null; // null when no messages yet
+}

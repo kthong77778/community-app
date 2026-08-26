@@ -76,6 +76,25 @@ export default function ItemDetailPage() {
     }
   }
 
+  async function startChat() {
+    if (!user) {
+      router.push(`/login?next=/items/${id}`);
+      return;
+    }
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: id }),
+      });
+      const data = await res.json();
+      if (res.ok) router.push(`/chats/${data.conversation.id}`);
+      else alert(data.error ?? "채팅을 시작할 수 없습니다.");
+    } catch {
+      alert("채팅을 시작할 수 없습니다.");
+    }
+  }
+
   async function remove() {
     if (!confirm("이 상품을 삭제할까요?")) return;
     const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
@@ -167,15 +186,15 @@ export default function ItemDetailPage() {
 
         <p className="item-desc">{item.description}</p>
 
-        <button
-          className="btn btn-primary"
-          style={{ width: "100%", marginTop: 8 }}
-          onClick={() =>
-            alert(`${item.sellerName}님과의 채팅\n\n실제 앱에서는 판매자와 1:1 채팅으로 연결됩니다.`)
-          }
-        >
-          💬 채팅하기
-        </button>
+        {!isSeller && (
+          <button
+            className="btn btn-primary"
+            style={{ width: "100%", marginTop: 8 }}
+            onClick={startChat}
+          >
+            💬 채팅하기
+          </button>
+        )}
       </article>
     </>
   );

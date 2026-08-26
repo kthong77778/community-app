@@ -1,9 +1,12 @@
 import type {
   Comment,
+  Conversation,
+  ConversationView,
   Item,
   ItemFavoriteState,
   ItemView,
   LikeState,
+  Message,
   Offer,
   Place,
   PlaceFavoriteState,
@@ -168,4 +171,29 @@ export interface Store {
     price: number;
     url: string;
   }): Promise<Offer>;
+
+  // ----- Chat (1:1 메시지) -----
+  // Returns the existing (itemId, buyerId, sellerId) conversation or creates it.
+  // Runs in a transaction so concurrent "채팅하기" taps don't duplicate a thread.
+  getOrCreateConversation(data: {
+    itemId: string | null;
+    buyerId: string;
+    sellerId: string;
+  }): Promise<Conversation>;
+  // Conversations the user takes part in (buyer or seller), most-recent first,
+  // enriched with the other participant + item summary + last message.
+  listConversations(userId: string): Promise<ConversationView[]>;
+  // A single conversation the user takes part in, or null if missing / not a
+  // participant (so callers can 404 non-members).
+  getConversationForUser(
+    id: string,
+    userId: string,
+  ): Promise<ConversationView | null>;
+  listMessages(conversationId: string): Promise<Message[]>; // oldest first
+  // Appends a message and bumps the conversation's lastMessageAt (transaction).
+  sendMessage(data: {
+    conversationId: string;
+    senderId: string;
+    text: string;
+  }): Promise<Message>;
 }

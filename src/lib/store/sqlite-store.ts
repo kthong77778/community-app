@@ -5,10 +5,13 @@ import { dirname, join } from "path";
 import type { Store } from "./Store";
 import type {
   Comment,
+  Conversation,
+  ConversationView,
   Item,
   ItemFavoriteState,
   ItemView,
   LikeState,
+  Message,
   Offer,
   Place,
   PlaceFavoriteState,
@@ -180,6 +183,27 @@ export class SqliteStore implements Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_offers_product ON product_offers(product_id, price);
+
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        item_id TEXT,
+        buyer_id TEXT NOT NULL,
+        seller_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        last_message_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_conv_buyer ON conversations(buyer_id, last_message_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_conv_seller ON conversations(seller_id, last_message_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_conv_lookup ON conversations(item_id, buyer_id, seller_id);
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
     `);
 
     // Additive column migrations for databases created before a column existed.
@@ -896,6 +920,123 @@ export class SqliteStore implements Store {
     return offer;
   }
 
+  // ----- Chat (1:1 메시지) -----
+  async getOrCreateConversation(data: {
+    itemId: string | null;
+    buyerId: string;
+    sellerId: string;
+  }): Promise<Conversation> {
+    const run = this.db.transaction((): Conversation => {
+      const existing = (
+        data.itemId === null
+          ? this.db
+              .prepare(
+                `SELECT * FROM conversations
+                 WHERE item_id IS NULL AND buyer_id = ? AND seller_id = ?`,
+              )
+              .get(data.buyerId, data.sellerId)
+          : this.db
+              .prepare(
+                `SELECT * FROM conversations
+                 WHERE item_id = ? AND buyer_id = ? AND seller_id = ?`,
+              )
+              .get(data.itemId, data.buyerId, data.sellerId)
+      ) as ConversationRow | undefined;
+      if (existing) return mapConversation(existing);
+
+      const now = new Date().toISOString();
+      const convo: Conversation = {
+        id: randomUUID(),
+        itemId: data.itemId,
+        buyerId: data.buyerId,
+        sellerId: data.sellerId,
+        createdAt: now,
+        lastMessageAt: now,
+      };
+      this.db
+        .prepare(
+          `INSERT INTO conversations (id, item_id, buyer_id, seller_id, created_at, last_message_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          convo.id,
+          convo.itemId,
+          convo.buyerId,
+          convo.sellerId,
+          convo.createdAt,
+          convo.lastMessageAt,
+        );
+      return convo;
+    });
+    return run();
+  }
+
+  async listConversations(userId: string): Promise<ConversationView[]> {
+    const rows = this.db
+      .prepare(
+        `${CONVO_VIEW_SELECT}
+         WHERE c.buyer_id = ? OR c.seller_id = ?
+         ORDER BY c.last_message_at DESC, c.rowid DESC`,
+      )
+      .all(userId, userId) as ConversationViewRow[];
+    return rows.map((r) => mapConversationView(r, userId));
+  }
+
+  async getConversationForUser(
+    id: string,
+    userId: string,
+  ): Promise<ConversationView | null> {
+    const row = this.db
+      .prepare(
+        `${CONVO_VIEW_SELECT}
+         WHERE c.id = ? AND (c.buyer_id = ? OR c.seller_id = ?)`,
+      )
+      .get(id, userId, userId) as ConversationViewRow | undefined;
+    return row ? mapConversationView(row, userId) : null;
+  }
+
+  async listMessages(conversationId: string): Promise<Message[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC, rowid ASC`,
+      )
+      .all(conversationId) as MessageRow[];
+    return rows.map(mapMessage);
+  }
+
+  async sendMessage(data: {
+    conversationId: string;
+    senderId: string;
+    text: string;
+  }): Promise<Message> {
+    const message: Message = {
+      id: randomUUID(),
+      conversationId: data.conversationId,
+      senderId: data.senderId,
+      text: data.text,
+      createdAt: new Date().toISOString(),
+    };
+    const run = this.db.transaction(() => {
+      this.db
+        .prepare(
+          `INSERT INTO messages (id, conversation_id, sender_id, text, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          message.id,
+          message.conversationId,
+          message.senderId,
+          message.text,
+          message.createdAt,
+        );
+      this.db
+        .prepare(`UPDATE conversations SET last_message_at = ? WHERE id = ?`)
+        .run(message.createdAt, message.conversationId);
+    });
+    run();
+    return message;
+  }
+
   // Housekeeping: drop expired sessions. Safe to call periodically.
   deleteExpiredSessions(): void {
     this.db
@@ -1163,6 +1304,78 @@ function mapOffer(r: OfferRow): Offer {
     shop: r.shop,
     price: r.price,
     url: r.url,
+    createdAt: r.created_at,
+  };
+}
+
+interface ConversationRow {
+  id: string;
+  item_id: string | null;
+  buyer_id: string;
+  seller_id: string;
+  created_at: string;
+  last_message_at: string;
+}
+
+interface ConversationViewRow extends ConversationRow {
+  item_title: string | null;
+  item_image_url: string | null;
+  item_price: number | null;
+  item_status: string | null;
+  last_message_text: string | null;
+}
+
+interface MessageRow {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+}
+
+const CONVO_VIEW_SELECT = `
+  SELECT c.*,
+    i.title AS item_title,
+    i.image_url AS item_image_url,
+    i.price AS item_price,
+    i.status AS item_status,
+    (SELECT m.text FROM messages m WHERE m.conversation_id = c.id
+       ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_message_text
+  FROM conversations c
+  LEFT JOIN items i ON i.id = c.item_id`;
+
+function mapConversation(r: ConversationRow): Conversation {
+  return {
+    id: r.id,
+    itemId: r.item_id,
+    buyerId: r.buyer_id,
+    sellerId: r.seller_id,
+    createdAt: r.created_at,
+    lastMessageAt: r.last_message_at,
+  };
+}
+
+function mapConversationView(
+  r: ConversationViewRow,
+  viewerId: string,
+): ConversationView {
+  return {
+    ...mapConversation(r),
+    otherUserId: r.buyer_id === viewerId ? r.seller_id : r.buyer_id,
+    itemTitle: r.item_title,
+    itemImageUrl: r.item_image_url,
+    itemPrice: r.item_price,
+    itemStatus: r.item_status,
+    lastMessageText: r.last_message_text,
+  };
+}
+
+function mapMessage(r: MessageRow): Message {
+  return {
+    id: r.id,
+    conversationId: r.conversation_id,
+    senderId: r.sender_id,
+    text: r.text,
     createdAt: r.created_at,
   };
 }

@@ -32,6 +32,9 @@ export function Header() {
           </Link>
           {loading ? null : user ? (
             <>
+              <Link href="/chats" className="btn btn-sm">
+                💬 채팅
+              </Link>
               <span className="header-user">{user.username}님</span>
               <button className="btn btn-sm" onClick={handleLogout}>
                 로그아웃
