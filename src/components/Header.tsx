@@ -65,7 +65,12 @@ export function Header() {
                   <span className="nav-badge">{unread > 99 ? "99+" : unread}</span>
                 )}
               </Link>
-              <span className="header-user">{user.username}님</span>
+              <Link
+                href={`/users/${encodeURIComponent(user.username)}`}
+                className="header-user"
+              >
+                {user.username}님
+              </Link>
               <button className="btn btn-sm" onClick={handleLogout}>
                 로그아웃
               </button>

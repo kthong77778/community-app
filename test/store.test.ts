@@ -471,6 +471,29 @@ describe("shopping (products + offers)", () => {
   });
 });
 
+describe("profile (by-author / by-seller)", () => {
+  it("lists a user's posts and listings newest-first", async () => {
+    const u = await makeUser("seller");
+    const other = await makeUser("other");
+    await store.createPost({ title: "A", content: "c", category: "자랑", authorId: u.id, authorName: u.username });
+    await store.createPost({ title: "B", content: "c", category: "질문", authorId: u.id, authorName: u.username });
+    await store.createPost({ title: "X", content: "c", category: "자랑", authorId: other.id, authorName: other.username });
+    await store.createItem({ title: "방석", description: "d", price: 1000, category: "기타", imageUrl: "", location: "서울", sellerId: u.id, sellerName: u.username });
+
+    const posts = await store.listPostsByAuthor(u.id, u.id);
+    assert.equal(posts.length, 2);
+    assert.ok(posts.every((p) => p.authorId === u.id));
+
+    const items = await store.listItemsBySeller(u.id, u.id);
+    assert.equal(items.length, 1);
+    assert.equal(items[0].title, "방석");
+
+    // Empty for a user with no content.
+    assert.equal((await store.listPostsByAuthor("nobody", null)).length, 0);
+    assert.equal((await store.listItemsBySeller("nobody")).length, 0);
+  });
+});
+
 describe("chat (conversations + messages)", () => {
   async function seedItem(sellerId = "seller") {
     return store.createItem({

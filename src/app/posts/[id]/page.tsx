@@ -100,7 +100,12 @@ export default function PostDetailPage() {
         </span>
         <h1>{post.title}</h1>
         <div className="post-meta">
-          <span>{post.authorName}</span>
+          <Link
+            href={`/users/${encodeURIComponent(post.authorId)}`}
+            className="author-link"
+          >
+            {post.authorName}
+          </Link>
           <span className="dot">{timeAgo(post.createdAt)}</span>
           {isAuthor && (
             <button

@@ -18,6 +18,30 @@ export default function SellPage() {
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "사진 업로드에 실패했습니다.");
+        return;
+      }
+      setImageUrl(data.url);
+    } catch {
+      setError("사진 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=/sell");
@@ -93,8 +117,39 @@ export default function SellPage() {
             <input id="l" className="input" value={location} onChange={(e) => setLocation(e.target.value)} maxLength={40} placeholder="예: 서울 마포구" required />
           </div>
           <div className="field">
-            <label htmlFor="img">사진 URL (선택)</label>
-            <input id="img" className="input" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://... (없으면 비워두세요)" />
+            <label>사진 (선택)</label>
+            {imageUrl ? (
+              <div className="sell-photo">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt="상품 사진" />
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => setImageUrl("")}
+                >
+                  사진 제거
+                </button>
+              </div>
+            ) : (
+              <label className="photo-drop">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFile}
+                  style={{ display: "none" }}
+                  disabled={uploading}
+                />
+                <span>{uploading ? "업로드 중…" : "📷 사진 선택"}</span>
+              </label>
+            )}
+            <input
+              id="img"
+              className="input"
+              style={{ marginTop: 8 }}
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="또는 이미지 URL 붙여넣기"
+            />
           </div>
           <div className="field">
             <label htmlFor="d">설명</label>

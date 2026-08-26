@@ -167,7 +167,13 @@ export default function ItemDetailPage() {
         <h1>{item.title}</h1>
         <div className="item-price-lg">{won(item.price)}</div>
         <p className="muted" style={{ margin: "6px 0 14px" }}>
-          {item.sellerName} · {item.location} · {timeAgo(item.createdAt)}
+          <Link
+            href={`/users/${encodeURIComponent(item.sellerId)}`}
+            className="author-link"
+          >
+            {item.sellerName}
+          </Link>{" "}
+          · {item.location} · {timeAgo(item.createdAt)}
         </p>
 
         {isSeller && (

@@ -428,6 +428,20 @@ export class SqliteStore implements Store {
     return { posts: page, hasMore, nextOffset: offset + page.length };
   }
 
+  async listPostsByAuthor(
+    authorId: string,
+    currentUserId: string | null,
+  ): Promise<PostView[]> {
+    const rows = this.db
+      .prepare(
+        `${POST_VIEW_SELECT}
+         WHERE p.author_id = ?
+         ORDER BY p.created_at DESC, p.rowid DESC`,
+      )
+      .all(currentUserId ?? "", authorId) as PostViewRow[];
+    return rows.map(mapPostView);
+  }
+
   async getPostView(
     id: string,
     currentUserId: string | null,
@@ -702,6 +716,18 @@ export class SqliteStore implements Store {
         `${ITEM_VIEW_SELECT} ${where} ORDER BY i.created_at DESC, i.rowid DESC`,
       )
       .all(...params) as ItemViewRow[];
+    return rows.map(mapItemView);
+  }
+
+  async listItemsBySeller(
+    sellerId: string,
+    currentUserId?: string | null,
+  ): Promise<ItemView[]> {
+    const rows = this.db
+      .prepare(
+        `${ITEM_VIEW_SELECT} WHERE i.seller_id = ? ORDER BY i.created_at DESC, i.rowid DESC`,
+      )
+      .all(currentUserId ?? "", sellerId) as ItemViewRow[];
     return rows.map(mapItemView);
   }
 

@@ -62,6 +62,11 @@ export interface Store {
     category?: string | null;
   }): Promise<PostPage>;
   getPostView(id: string, currentUserId: string | null): Promise<PostView | null>;
+  // All posts by one author (newest first), for a profile page.
+  listPostsByAuthor(
+    authorId: string,
+    currentUserId: string | null,
+  ): Promise<PostView[]>;
   getPost(id: string): Promise<Post | null>;
   deletePost(id: string): Promise<boolean>;
   // Toggles a like for the user; returns the updated counts, or null if the
@@ -126,6 +131,11 @@ export interface Store {
     currentUserId?: string | null;
   }): Promise<ItemView[]>; // newest first
   getItem(id: string, currentUserId?: string | null): Promise<ItemView | null>;
+  // All listings by one seller (newest first), for a profile page.
+  listItemsBySeller(
+    sellerId: string,
+    currentUserId?: string | null,
+  ): Promise<ItemView[]>;
   createItem(data: {
     title: string;
     description: string;
