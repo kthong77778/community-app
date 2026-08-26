@@ -36,3 +36,25 @@ export interface PostPage {
   hasMore: boolean;
   nextOffset: number;
 }
+
+export interface PlaceView {
+  id: string;
+  name: string;
+  type: string;
+  address: string;
+  lat: number;
+  lng: number;
+  reviewCount: number;
+  avgRating: number;
+  createdAt: string;
+}
+
+export interface Review {
+  id: string;
+  placeId: string;
+  authorId: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  createdAt: string;
+}

@@ -32,3 +32,16 @@ export const categoryStyle: Record<string, { fg: string; bg: string }> = {
 export function catStyle(cat: string) {
   return categoryStyle[cat] ?? { fg: colors.textMuted, bg: colors.surface2 };
 }
+
+// 지도 장소 유형.
+export const PLACE_TYPES = [
+  { key: "카페", emoji: "☕", color: "#f59e0b" },
+  { key: "샵", emoji: "🛍️", color: "#ec4899" },
+  { key: "호텔", emoji: "🛏️", color: "#0ea5e9" },
+  { key: "병원", emoji: "🏥", color: "#10b981" },
+] as const;
+
+export function placeType(key: string) {
+  return PLACE_TYPES.find((t) => t.key === key) ?? PLACE_TYPES[0];
+}
+

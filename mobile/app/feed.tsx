@@ -106,6 +106,11 @@ export default function FeedScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
+          headerLeft: () => (
+            <Link href="/map" style={styles.headerLink}>
+              🗺️ 지도
+            </Link>
+          ),
           headerRight: () =>
             user ? (
               <View style={styles.headerRight}>
