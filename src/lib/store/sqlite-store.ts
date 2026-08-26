@@ -6,6 +6,8 @@ import type { Store } from "./Store";
 import type {
   Comment,
   Item,
+  ItemFavoriteState,
+  ItemView,
   LikeState,
   Place,
   PlaceView,
@@ -134,6 +136,15 @@ export class SqliteStore implements Store {
       );
       CREATE INDEX IF NOT EXISTS idx_items_created ON items(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
+
+      CREATE TABLE IF NOT EXISTS item_favorites (
+        user_id TEXT NOT NULL,
+        item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_item_favorites_user ON item_favorites(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_item_favorites_item ON item_favorites(item_id);
     `);
 
     // Additive column migrations for databases created before a column existed.
@@ -518,31 +529,36 @@ export class SqliteStore implements Store {
   async listItems(opts?: {
     category?: string | null;
     status?: string | null;
-  }): Promise<Item[]> {
+    currentUserId?: string | null;
+  }): Promise<ItemView[]> {
     const clauses: string[] = [];
-    const params: string[] = [];
+    // The favorited_by_me subquery param comes first (see ITEM_VIEW_SELECT).
+    const params: (string | number)[] = [opts?.currentUserId ?? ""];
     if (opts?.category) {
-      clauses.push("category = ?");
+      clauses.push("i.category = ?");
       params.push(opts.category);
     }
     if (opts?.status) {
-      clauses.push("status = ?");
+      clauses.push("i.status = ?");
       params.push(opts.status);
     }
     const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
     const rows = this.db
       .prepare(
-        `SELECT * FROM items ${where} ORDER BY created_at DESC, rowid DESC`,
+        `${ITEM_VIEW_SELECT} ${where} ORDER BY i.created_at DESC, i.rowid DESC`,
       )
-      .all(...params) as ItemRow[];
-    return rows.map(mapItem);
+      .all(...params) as ItemViewRow[];
+    return rows.map(mapItemView);
   }
 
-  async getItem(id: string): Promise<Item | null> {
+  async getItem(
+    id: string,
+    currentUserId?: string | null,
+  ): Promise<ItemView | null> {
     const row = this.db
-      .prepare(`SELECT * FROM items WHERE id = ?`)
-      .get(id) as ItemRow | undefined;
-    return row ? mapItem(row) : null;
+      .prepare(`${ITEM_VIEW_SELECT} WHERE i.id = ?`)
+      .get(currentUserId ?? "", id) as ItemViewRow | undefined;
+    return row ? mapItemView(row) : null;
   }
 
   async createItem(data: {
@@ -603,6 +619,53 @@ export class SqliteStore implements Store {
   async deleteItem(id: string): Promise<boolean> {
     const info = this.db.prepare(`DELETE FROM items WHERE id = ?`).run(id);
     return info.changes > 0;
+  }
+
+  async toggleItemFavorite(
+    userId: string,
+    itemId: string,
+  ): Promise<ItemFavoriteState | null> {
+    const toggle = this.db.transaction((): ItemFavoriteState | null => {
+      const exists = this.db
+        .prepare(`SELECT 1 FROM items WHERE id = ?`)
+        .get(itemId);
+      if (!exists) return null;
+
+      const favorited = this.db
+        .prepare(
+          `SELECT 1 FROM item_favorites WHERE user_id = ? AND item_id = ?`,
+        )
+        .get(userId, itemId);
+
+      if (favorited) {
+        this.db
+          .prepare(
+            `DELETE FROM item_favorites WHERE user_id = ? AND item_id = ?`,
+          )
+          .run(userId, itemId);
+        return { favorited: false };
+      }
+      this.db
+        .prepare(
+          `INSERT INTO item_favorites (user_id, item_id, created_at) VALUES (?, ?, ?)`,
+        )
+        .run(userId, itemId, new Date().toISOString());
+      return { favorited: true };
+    });
+    return toggle();
+  }
+
+  async listFavoriteItems(userId: string): Promise<ItemView[]> {
+    // Join against the favorites the user owns and order by when they were
+    // favorited (newest first). rowid breaks same-millisecond ties.
+    const rows = this.db
+      .prepare(
+        `${ITEM_VIEW_SELECT}
+         JOIN item_favorites fav ON fav.item_id = i.id AND fav.user_id = ?
+         ORDER BY fav.created_at DESC, i.rowid DESC`,
+      )
+      .all(userId, userId) as ItemViewRow[];
+    return rows.map(mapItemView);
   }
 
   // Housekeeping: drop expired sessions. Safe to call periodically.
@@ -766,6 +829,19 @@ interface ItemRow {
   updated_at: string;
 }
 
+interface ItemViewRow extends ItemRow {
+  favorite_count: number;
+  favorited_by_me: number;
+}
+
+// Item select enriched with favorite aggregates. The first `?` binds the
+// current viewer id for favorited_by_me; add WHERE/JOIN clauses after it.
+const ITEM_VIEW_SELECT = `
+  SELECT i.*,
+    (SELECT COUNT(*) FROM item_favorites f WHERE f.item_id = i.id) AS favorite_count,
+    EXISTS(SELECT 1 FROM item_favorites f2 WHERE f2.item_id = i.id AND f2.user_id = ?) AS favorited_by_me
+  FROM items i`;
+
 function mapItem(r: ItemRow): Item {
   return {
     id: r.id,
@@ -780,6 +856,14 @@ function mapItem(r: ItemRow): Item {
     sellerName: r.seller_name,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+  };
+}
+
+function mapItemView(r: ItemViewRow): ItemView {
+  return {
+    ...mapItem(r),
+    favoriteCount: r.favorite_count,
+    favoritedByMe: r.favorited_by_me === 1,
   };
 }
 

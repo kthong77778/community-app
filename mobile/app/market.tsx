@@ -135,6 +135,11 @@ export default function MarketScreen() {
                       {item.status}
                     </Text>
                   </View>
+                  {item.favoritedByMe && (
+                    <View style={styles.favBadge}>
+                      <Text style={styles.favBadgeText}>♥</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.cardBody}>
                   <Text style={styles.cardTitle} numberOfLines={2}>
@@ -195,6 +200,18 @@ const styles = StyleSheet.create({
   thumbEmoji: { alignItems: "center", justifyContent: "center" },
   stBadge: { position: "absolute", left: 8, top: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   stBadgeText: { fontSize: 11, fontWeight: "700" },
+  favBadge: {
+    position: "absolute",
+    right: 8,
+    top: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.likeBg,
+  },
+  favBadgeText: { fontSize: 13, color: colors.like, fontWeight: "700" },
   cardBody: { padding: 10 },
   cardTitle: { fontSize: 14, fontWeight: "600", color: colors.text, lineHeight: 19 },
   cardPrice: { fontSize: 16, fontWeight: "800", color: colors.text, marginTop: 4 },

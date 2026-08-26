@@ -1,6 +1,8 @@
 import type {
   Comment,
   Item,
+  ItemFavoriteState,
+  ItemView,
   LikeState,
   Place,
   PlaceView,
@@ -95,11 +97,14 @@ export interface Store {
   deleteReview(id: string): Promise<boolean>;
 
   // ----- Marketplace (중고거래) -----
+  // Lists listings (newest first) with favorite aggregates. Pass `currentUserId`
+  // to have `favoritedByMe` reflect that viewer's 찜 state (null → always false).
   listItems(opts?: {
     category?: string | null;
     status?: string | null;
-  }): Promise<Item[]>; // newest first
-  getItem(id: string): Promise<Item | null>;
+    currentUserId?: string | null;
+  }): Promise<ItemView[]>; // newest first
+  getItem(id: string, currentUserId?: string | null): Promise<ItemView | null>;
   createItem(data: {
     title: string;
     description: string;
@@ -112,4 +117,13 @@ export interface Store {
   }): Promise<Item>;
   updateItemStatus(id: string, status: string): Promise<Item | null>;
   deleteItem(id: string): Promise<boolean>;
+
+  // Toggles the user's 찜(favorite) for an item; returns the new state, or null
+  // if the item does not exist. Runs in a transaction.
+  toggleItemFavorite(
+    userId: string,
+    itemId: string,
+  ): Promise<ItemFavoriteState | null>;
+  // Lists the items the user has favorited, most-recently-favorited first.
+  listFavoriteItems(userId: string): Promise<ItemView[]>;
 }

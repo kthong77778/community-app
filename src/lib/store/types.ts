@@ -100,3 +100,15 @@ export interface Item {
   createdAt: string;
   updatedAt: string;
 }
+
+// An item enriched with favorite (찜) aggregates for list/detail views.
+// Computed in SQL relative to the current viewer (favoritedByMe).
+export interface ItemView extends Item {
+  favoriteCount: number;
+  favoritedByMe: boolean;
+}
+
+// Result of toggling an item favorite.
+export interface ItemFavoriteState {
+  favorited: boolean;
+}

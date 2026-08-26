@@ -30,6 +30,7 @@ export default function ItemDetailScreen() {
 
   const [item, setItem] = useState<Item | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
+  const [favBusy, setFavBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +57,34 @@ export default function ItemDetailScreen() {
       setItem(data.item);
     } catch (err) {
       Alert.alert("오류", err instanceof ApiError ? err.message : "상태 변경 실패");
+    }
+  }
+
+  async function toggleFavorite() {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (favBusy || !item) return;
+    setFavBusy(true);
+    const prev = item;
+    const nextFav = !item.favoritedByMe;
+    setItem({
+      ...item,
+      favoritedByMe: nextFav,
+      favoriteCount: (item.favoriteCount ?? 0) + (nextFav ? 1 : -1),
+    });
+    try {
+      const data = await apiRequest<{ favorited: boolean }>(
+        `/api/items/${id}/favorite`,
+        { method: "POST" },
+      );
+      setItem((cur) => (cur ? { ...cur, favoritedByMe: data.favorited } : cur));
+    } catch (err) {
+      setItem(prev);
+      Alert.alert("오류", err instanceof ApiError ? err.message : "찜 처리 실패");
+    } finally {
+      setFavBusy(false);
     }
   }
 
@@ -117,8 +146,23 @@ export default function ItemDetailScreen() {
                 {itemEmoji(item.category)} {item.category}
               </Text>
             </View>
+            <Pressable
+              onPress={toggleFavorite}
+              disabled={favBusy}
+              hitSlop={8}
+              style={[styles.favBtn, item.favoritedByMe && styles.favBtnOn, { marginLeft: "auto" }]}
+            >
+              <Text style={[styles.favHeart, item.favoritedByMe && styles.favOnText]}>
+                {item.favoritedByMe ? "♥" : "♡"}
+              </Text>
+              {(item.favoriteCount ?? 0) > 0 && (
+                <Text style={[styles.favCount, item.favoritedByMe && styles.favOnText]}>
+                  {item.favoriteCount}
+                </Text>
+              )}
+            </Pressable>
             {isSeller && (
-              <Pressable onPress={confirmDelete} hitSlop={8} style={{ marginLeft: "auto" }}>
+              <Pressable onPress={confirmDelete} hitSlop={8}>
                 <Text style={styles.deleteLink}>삭제</Text>
               </Pressable>
             )}
@@ -193,6 +237,21 @@ const styles = StyleSheet.create({
   catChip: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 7, backgroundColor: colors.surface2 },
   catChipText: { fontSize: 12, fontWeight: "600", color: colors.textMuted },
   deleteLink: { color: colors.danger, fontSize: 14, fontWeight: "600" },
+  favBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  favBtnOn: { borderColor: colors.like, backgroundColor: colors.likeBg },
+  favHeart: { fontSize: 15, fontWeight: "700", color: colors.textMuted },
+  favCount: { fontSize: 13, fontWeight: "700", color: colors.textMuted },
+  favOnText: { color: colors.like },
   title: { fontSize: 20, fontWeight: "800", color: colors.text, letterSpacing: -0.2 },
   price: { fontSize: 24, fontWeight: "800", color: colors.text, marginTop: 4 },
   meta: { fontSize: 13, color: colors.textMuted, marginTop: 8, marginBottom: 4 },

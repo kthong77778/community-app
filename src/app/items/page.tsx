@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
 import { timeAgo } from "@/lib/format";
 import { itemEmoji, statusStyle, won } from "@/lib/itemDisplay";
 import { ITEM_CATEGORIES } from "@/lib/marketplace";
@@ -9,12 +10,20 @@ export const dynamic = "force-dynamic";
 export default async function ItemsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; favorited?: string }>;
 }) {
-  const { category: raw } = await searchParams;
+  const { category: raw, favorited: favRaw } = await searchParams;
   const category = ITEM_CATEGORIES.includes(raw as never) ? raw! : null;
+  const favoritedOnly = favRaw === "1";
 
-  const items = await getStore().listItems({ category });
+  const user = await getCurrentUser();
+  const store = getStore();
+  const items =
+    favoritedOnly && user
+      ? await store.listFavoriteItems(user.id)
+      : favoritedOnly
+        ? []
+        : await store.listItems({ category, currentUserId: user?.id ?? null });
 
   return (
     <>
@@ -26,24 +35,51 @@ export default async function ItemsPage({
       </div>
 
       <nav className="filters">
-        <Link href="/items" className={`filter-pill ${!category ? "active" : ""}`}>
+        <Link
+          href="/items"
+          className={`filter-pill ${!category && !favoritedOnly ? "active" : ""}`}
+        >
           전체
         </Link>
         {ITEM_CATEGORIES.map((c) => (
           <Link
             key={c}
             href={`/items?category=${encodeURIComponent(c)}`}
-            className={`filter-pill ${category === c ? "active" : ""}`}
+            className={`filter-pill ${!favoritedOnly && category === c ? "active" : ""}`}
           >
             {c}
           </Link>
         ))}
+        <Link
+          href="/items?favorited=1"
+          className={`filter-pill ${favoritedOnly ? "active" : ""}`}
+        >
+          ♥ 찜한 상품
+        </Link>
       </nav>
 
-      {items.length === 0 ? (
+      {favoritedOnly && !user ? (
         <div className="empty">
-          등록된 상품이 없어요.
-          <br />첫 상품을 올려보세요!
+          찜한 상품을 보려면 로그인이 필요해요.
+          <br />
+          <Link href="/login" className="btn btn-sm" style={{ marginTop: 12 }}>
+            로그인
+          </Link>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="empty">
+          {favoritedOnly ? (
+            <>
+              아직 찜한 상품이 없어요.
+              <br />
+              마음에 드는 상품에 ♥를 눌러보세요!
+            </>
+          ) : (
+            <>
+              등록된 상품이 없어요.
+              <br />첫 상품을 올려보세요!
+            </>
+          )}
         </div>
       ) : (
         <div className="item-grid">
@@ -68,6 +104,11 @@ export default async function ItemsPage({
                   >
                     {i.status}
                   </span>
+                  {i.favoritedByMe && (
+                    <span className="fav-badge" aria-label="찜한 상품">
+                      ♥
+                    </span>
+                  )}
                 </div>
                 <div className="item-body">
                   <div className="item-title">{i.title}</div>

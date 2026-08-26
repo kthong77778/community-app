@@ -7,15 +7,16 @@ import { useAuth } from "@/components/AuthProvider";
 import { timeAgo } from "@/lib/format";
 import { itemEmoji, statusStyle, won } from "@/lib/itemDisplay";
 import { ITEM_STATUSES } from "@/lib/marketplace";
-import type { Item } from "@/lib/store/types";
+import type { ItemView } from "@/lib/store/types";
 
 export default function ItemDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
 
-  const [item, setItem] = useState<Item | null>(null);
+  const [item, setItem] = useState<ItemView | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
+  const [favBusy, setFavBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/items/${id}`, { cache: "no-store" });
@@ -41,6 +42,37 @@ export default function ItemDetailPage() {
     if (res.ok) {
       const data = await res.json();
       setItem(data.item);
+    }
+  }
+
+  async function toggleFavorite() {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (favBusy || !item) return;
+    setFavBusy(true);
+    // Optimistic update; revert on failure.
+    const prev = item;
+    setItem({
+      ...item,
+      favoritedByMe: !item.favoritedByMe,
+      favoriteCount: item.favoriteCount + (item.favoritedByMe ? -1 : 1),
+    });
+    try {
+      const res = await fetch(`/api/items/${id}/favorite`, { method: "POST" });
+      if (!res.ok) {
+        setItem(prev);
+      } else {
+        const data = (await res.json()) as { favorited: boolean };
+        setItem((cur) =>
+          cur ? { ...cur, favoritedByMe: data.favorited } : cur,
+        );
+      }
+    } catch {
+      setItem(prev);
+    } finally {
+      setFavBusy(false);
     }
   }
 
@@ -93,8 +125,22 @@ export default function ItemDetailPage() {
           <span className="badge cat-chip">
             {itemEmoji(item.category)} {item.category}
           </span>
+          <button
+            type="button"
+            className={`fav-btn ${item.favoritedByMe ? "on" : ""}`}
+            style={{ marginLeft: "auto" }}
+            onClick={toggleFavorite}
+            disabled={favBusy}
+            aria-pressed={item.favoritedByMe}
+            title={item.favoritedByMe ? "찜 취소" : "찜하기"}
+          >
+            <span className="fav-heart">{item.favoritedByMe ? "♥" : "♡"}</span>
+            {item.favoriteCount > 0 && (
+              <span className="fav-count">{item.favoriteCount}</span>
+            )}
+          </button>
           {isSeller && (
-            <button className="btn btn-danger btn-sm" style={{ marginLeft: "auto" }} onClick={remove}>
+            <button className="btn btn-danger btn-sm" onClick={remove}>
               삭제
             </button>
           )}

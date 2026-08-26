@@ -72,4 +72,8 @@ export interface Item {
   sellerName: string;
   createdAt: string;
   updatedAt: string;
+  // Favorite (찜) aggregates for the current viewer. Optional so older
+  // responses / list endpoints without a viewer still type-check.
+  favoriteCount?: number;
+  favoritedByMe?: boolean;
 }

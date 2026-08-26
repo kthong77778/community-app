@@ -261,6 +261,82 @@ describe("marketplace items", () => {
     assert.equal(await store.deleteItem(item.id), true);
     assert.equal(await store.getItem(item.id), null);
   });
+
+  it("reports favorite aggregates per viewer", async () => {
+    const buyer = await makeUser("buyer");
+    const item = await makeItem();
+
+    // No favorites yet, and no viewer context.
+    const fresh = await store.getItem(item.id);
+    assert.equal(fresh?.favoriteCount, 0);
+    assert.equal(fresh?.favoritedByMe, false);
+
+    const state = await store.toggleItemFavorite(buyer.id, item.id);
+    assert.deepEqual(state, { favorited: true });
+
+    // The buyer sees favoritedByMe; another viewer sees the count only.
+    const asBuyer = await store.getItem(item.id, buyer.id);
+    assert.equal(asBuyer?.favoriteCount, 1);
+    assert.equal(asBuyer?.favoritedByMe, true);
+
+    const asOther = await store.getItem(item.id, "someone-else");
+    assert.equal(asOther?.favoriteCount, 1);
+    assert.equal(asOther?.favoritedByMe, false);
+
+    // listItems carries the viewer's favorite flag too.
+    const listed = await store.listItems({ currentUserId: buyer.id });
+    assert.equal(listed[0].favoritedByMe, true);
+    assert.equal(listed[0].favoriteCount, 1);
+  });
+
+  it("toggles a favorite off and prevents duplicates", async () => {
+    const buyer = await makeUser("buyer");
+    const item = await makeItem();
+
+    const on = await store.toggleItemFavorite(buyer.id, item.id);
+    assert.deepEqual(on, { favorited: true });
+    // Toggling again removes it (no duplicate row inserted).
+    const off = await store.toggleItemFavorite(buyer.id, item.id);
+    assert.deepEqual(off, { favorited: false });
+
+    const view = await store.getItem(item.id, buyer.id);
+    assert.equal(view?.favoriteCount, 0);
+    assert.equal(view?.favoritedByMe, false);
+  });
+
+  it("returns null when favoriting a missing item", async () => {
+    const buyer = await makeUser("buyer");
+    assert.equal(await store.toggleItemFavorite(buyer.id, "missing"), null);
+  });
+
+  it("lists favorite items most-recently-favorited first", async () => {
+    const buyer = await makeUser("buyer");
+    const a = await makeItem({ title: "A" });
+    const b = await makeItem({ title: "B" });
+    await makeItem({ title: "C" }); // never favorited
+
+    await store.toggleItemFavorite(buyer.id, a.id);
+    await store.toggleItemFavorite(buyer.id, b.id);
+
+    const favs = await store.listFavoriteItems(buyer.id);
+    assert.equal(favs.length, 2);
+    assert.equal(favs[0].id, b.id); // newest favorite first
+    assert.ok(favs.every((i) => i.favoritedByMe === true));
+
+    // Another user's favorites are independent.
+    const other = await makeUser("other");
+    assert.equal((await store.listFavoriteItems(other.id)).length, 0);
+  });
+
+  it("cascades favorite deletion when an item is deleted", async () => {
+    const buyer = await makeUser("buyer");
+    const item = await makeItem();
+    await store.toggleItemFavorite(buyer.id, item.id);
+    assert.equal((await store.listFavoriteItems(buyer.id)).length, 1);
+
+    assert.equal(await store.deleteItem(item.id), true);
+    assert.equal((await store.listFavoriteItems(buyer.id)).length, 0);
+  });
 });
 
 describe("comments", () => {

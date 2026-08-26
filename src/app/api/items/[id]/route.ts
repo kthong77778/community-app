@@ -5,10 +5,11 @@ import { getStore } from "@/lib/store";
 
 type Params = { params: Promise<{ id: string }> };
 
-// GET /api/items/:id — listing detail.
+// GET /api/items/:id — listing detail (carries favoritedByMe for the viewer).
 export async function GET(_request: Request, { params }: Params) {
   const { id } = await params;
-  const item = await getStore().getItem(id);
+  const user = await getCurrentUser();
+  const item = await getStore().getItem(id, user?.id ?? null);
   if (!item) {
     return NextResponse.json({ error: "상품을 찾을 수 없습니다." }, { status: 404 });
   }

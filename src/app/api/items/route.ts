@@ -8,7 +8,9 @@ import {
 import { getStore } from "@/lib/store";
 import { cleanText, LIMITS } from "@/lib/validation";
 
-// GET /api/items?category=&status= — list listings (newest first).
+// GET /api/items?category=&status=&favorited=1 — list listings (newest first).
+// With favorited=1 returns the current user's 찜 목록 (empty when logged out).
+// Each item carries favoritedByMe/favoriteCount for the current viewer.
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const rawCat = url.searchParams.get("category");
@@ -18,7 +20,19 @@ export async function GET(request: Request) {
   const status =
     rawStatus && ITEM_STATUSES.includes(rawStatus as never) ? rawStatus : null;
 
-  const items = await getStore().listItems({ category, status });
+  const user = await getCurrentUser();
+
+  if (url.searchParams.get("favorited") === "1") {
+    if (!user) return NextResponse.json({ items: [] });
+    const items = await getStore().listFavoriteItems(user.id);
+    return NextResponse.json({ items });
+  }
+
+  const items = await getStore().listItems({
+    category,
+    status,
+    currentUserId: user?.id ?? null,
+  });
   return NextResponse.json({ items });
 }
 
