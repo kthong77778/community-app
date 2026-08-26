@@ -71,6 +71,13 @@
 - 모바일: `mobile/app/shop.tsx`, `mobile/app/product/[id].tsx`
 - 로그인 불필요(공개 카탈로그). 사용자 등록 없음(시드/관리자만) — 배포 시 어필리에이트/크롤링 소스 연동 여지.
 
+### 채팅 — 중고거래 상품 기준 구매자↔판매자 1:1 메시지
+- 백엔드: `src/app/api/conversations/**`; Store `getOrCreateConversation`(중복 방지)·`listConversations`·`getConversationForUser`(참여자만)·`listMessages`·`sendMessage`
+- 데이터: `conversations`(itemId 참조, 상품 삭제돼도 대화 유지) + `messages`. `ConversationView`=상대방·상품요약·마지막메시지 집계
+- 웹: `src/app/chats/page.tsx`(목록), `src/app/chats/[id]/page.tsx`(스레드), 상품상세 채팅하기(판매자 본인은 숨김), 헤더 채팅 링크
+- 모바일: `mobile/app/chats.tsx`, `mobile/app/chat/[id].tsx`, 하단탭 "채팅"
+- 로그인 필요. 상품상세 "채팅하기"가 진입점(get-or-create 후 스레드로 이동).
+
 ### 공통 네비/인프라
 - 모바일 하단탭: `mobile/src/components/BottomNav.tsx`(커뮤니티/지도/중고거래, `replace`), 화면 등록: `mobile/app/_layout.tsx`
 - 모바일 API/인증: `mobile/src/api/client.ts`(PATCH 포함), `mobile/src/api/types.ts`, `mobile/src/auth/AuthContext.tsx`
