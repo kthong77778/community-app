@@ -4,12 +4,15 @@ import type {
   ItemFavoriteState,
   ItemView,
   LikeState,
+  Offer,
   Place,
   PlaceFavoriteState,
   PlaceView,
   Post,
   PostPage,
   PostView,
+  Product,
+  ProductView,
   Review,
   User,
 } from "./types";
@@ -141,4 +144,28 @@ export interface Store {
   ): Promise<ItemFavoriteState | null>;
   // Lists the items the user has favorited, most-recently-favorited first.
   listFavoriteItems(userId: string): Promise<ItemView[]>;
+
+  // ----- Shopping (쇼핑/물품 비교) -----
+  // Lists catalog products with price-comparison aggregates. `sort` is
+  // "lowest" (최저가순) or "latest" (최신순, default).
+  listProducts(opts?: {
+    category?: string | null;
+    sort?: "lowest" | "latest";
+  }): Promise<ProductView[]>;
+  getProduct(id: string): Promise<ProductView | null>;
+  // Offers for a product, cheapest first.
+  listOffers(productId: string): Promise<Offer[]>;
+  createProduct(data: {
+    name: string;
+    brand: string;
+    category: string;
+    imageUrl: string;
+    description: string;
+  }): Promise<Product>;
+  addOffer(data: {
+    productId: string;
+    shop: string;
+    price: number;
+    url: string;
+  }): Promise<Offer>;
 }

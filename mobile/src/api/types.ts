@@ -81,3 +81,29 @@ export interface Item {
   favoriteCount?: number;
   favoritedByMe?: boolean;
 }
+
+// 쇼핑/물품 비교 — 카탈로그 상품과 판매처 오퍼.
+export interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  imageUrl: string;
+  description: string;
+  createdAt: string;
+}
+
+export interface Offer {
+  id: string;
+  productId: string;
+  shop: string;
+  price: number;
+  url: string;
+  createdAt: string;
+}
+
+export interface ProductView extends Product {
+  offerCount: number;
+  lowestPrice: number; // 0 when no offers
+  highestPrice: number; // 0 when no offers
+}

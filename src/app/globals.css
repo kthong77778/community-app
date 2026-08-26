@@ -504,3 +504,33 @@ main {
 .fav-btn .fav-heart { font-size: 15px; line-height: 1; }
 .fav-btn .fav-count { font-size: 13px; }
 .fav-inline { color: #e11d48; font-size: 13px; }
+
+/* 쇼핑/물품 비교 */
+.sort-bar { display: flex; gap: 8px; margin: 4px 0 14px; }
+.sort-pill {
+  padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-muted); font-size: 13px; font-weight: 600;
+}
+.sort-pill:hover { background: var(--surface-2); }
+.sort-pill.active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-strong); }
+.shop-brand { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
+.shop-price { font-size: 17px; font-weight: 800; color: var(--text); margin-top: 4px; }
+.shop-price-label { font-size: 11px; font-weight: 700; color: var(--primary); }
+.shop-compare { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.shop-price-lg { font-size: 24px; font-weight: 800; color: var(--text); margin: 8px 0 4px; }
+.shop-price-lg .shop-price-label { font-size: 13px; vertical-align: middle; }
+.shop-among { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+.offer-list { display: flex; flex-direction: column; gap: 10px; }
+.offer-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+}
+.offer-row.best { border-color: var(--primary); background: var(--primary-soft); }
+.offer-main { min-width: 0; }
+.offer-shop { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; }
+.offer-best {
+  font-size: 11px; font-weight: 700; color: #fff; background: var(--primary);
+  padding: 1px 7px; border-radius: 999px;
+}
+.offer-price { font-size: 19px; font-weight: 800; color: var(--text); margin-top: 3px; }
+.offer-save { font-size: 13px; color: var(--text-muted); margin-top: 4px; text-align: center; }

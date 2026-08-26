@@ -120,3 +120,32 @@ export interface ItemView extends Item {
 export interface ItemFavoriteState {
   favorited: boolean;
 }
+
+// ----- Shopping (쇼핑/물품 비교) -----
+// A catalog product (신품) whose price is compared across multiple shops.
+export interface Product {
+  id: string;
+  name: string;
+  brand: string;
+  category: string; // PRODUCT_CATEGORIES
+  imageUrl: string; // optional; "" when none
+  description: string;
+  createdAt: string;
+}
+
+// A single shop's price offer for a product, with an outbound link.
+export interface Offer {
+  id: string;
+  productId: string;
+  shop: string; // 판매처 이름 (쿠팡/네이버 등)
+  price: number; // KRW
+  url: string; // outbound product link
+  createdAt: string;
+}
+
+// A product enriched with price-comparison aggregates across its offers.
+export interface ProductView extends Product {
+  offerCount: number;
+  lowestPrice: number; // 0 when no offers
+  highestPrice: number; // 0 when no offers
+}

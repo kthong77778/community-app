@@ -404,6 +404,73 @@ describe("marketplace items", () => {
   });
 });
 
+describe("shopping (products + offers)", () => {
+  it("seeds a default catalog with offers and price aggregates", async () => {
+    const products = await store.listProducts();
+    assert.ok(products.length >= 6, "default products should be seeded");
+    const withOffers = products.find((p) => p.offerCount > 0);
+    assert.ok(withOffers, "seeded products should have offers");
+    // lowest/highest reflect the offer spread.
+    assert.ok(withOffers!.lowestPrice > 0);
+    assert.ok(withOffers!.highestPrice >= withOffers!.lowestPrice);
+  });
+
+  it("filters products by category", async () => {
+    const feed = await store.listProducts({ category: "사료" });
+    assert.ok(feed.length >= 1);
+    assert.ok(feed.every((p) => p.category === "사료"));
+  });
+
+  it("sorts by lowest price, products without offers last", async () => {
+    const noOffer = await store.createProduct({
+      name: "무가격 상품",
+      brand: "브랜드",
+      category: "용품",
+      imageUrl: "",
+      description: "판매처 없음",
+    });
+
+    const byLowest = await store.listProducts({ sort: "lowest" });
+    // Every priced product comes before the offer-less one.
+    const idx = byLowest.findIndex((p) => p.id === noOffer.id);
+    assert.equal(idx, byLowest.length - 1, "offer-less product sorts last");
+    // Priced products are in non-decreasing lowestPrice order.
+    const priced = byLowest.filter((p) => p.offerCount > 0);
+    for (let i = 1; i < priced.length; i++) {
+      assert.ok(priced[i].lowestPrice >= priced[i - 1].lowestPrice);
+    }
+  });
+
+  it("returns a product with offers cheapest first", async () => {
+    const product = await store.createProduct({
+      name: "테스트 사료",
+      brand: "테스트",
+      category: "사료",
+      imageUrl: "",
+      description: "설명",
+    });
+    await store.addOffer({ productId: product.id, shop: "B샵", price: 20000, url: "https://b" });
+    await store.addOffer({ productId: product.id, shop: "A샵", price: 15000, url: "https://a" });
+    await store.addOffer({ productId: product.id, shop: "C샵", price: 18000, url: "https://c" });
+
+    const view = await store.getProduct(product.id);
+    assert.equal(view?.offerCount, 3);
+    assert.equal(view?.lowestPrice, 15000);
+    assert.equal(view?.highestPrice, 20000);
+
+    const offers = await store.listOffers(product.id);
+    assert.deepEqual(
+      offers.map((o) => o.shop),
+      ["A샵", "C샵", "B샵"], // cheapest first
+    );
+  });
+
+  it("returns null / empty for a missing product", async () => {
+    assert.equal(await store.getProduct("missing"), null);
+    assert.deepEqual(await store.listOffers("missing"), []);
+  });
+});
+
 describe("comments", () => {
   it("adds, lists, and counts comments", async () => {
     const u = await makeUser();

@@ -64,6 +64,13 @@
 - 모바일: `mobile/app/market.tsx`, `mobile/app/item/[id].tsx`, `mobile/app/sell.tsx`
 - 이미지는 선택(사진 URL); 없으면 카테고리 이모지. 파일 업로드는 배포 시 스토리지 필요.
 
+### 쇼핑/물품 비교 — 애견물품 카탈로그를 여러 판매처 가격으로 비교
+- 백엔드: `src/app/api/products/**`, `src/lib/shopping.ts`(카테고리/정렬/이모지), `src/lib/store/seed-products.ts`(기본 카탈로그+오퍼 시드)
+- 데이터: `products`(카탈로그 신품) + `product_offers`(판매처별 가격/링크). `ProductView`=offerCount/lowestPrice/highestPrice 집계
+- 웹: `src/app/shop/page.tsx`(그리드+카테고리+정렬), `src/app/shop/[id]/page.tsx`(판매처 가격비교, 최저가 뱃지, 외부 링크)
+- 모바일: `mobile/app/shop.tsx`, `mobile/app/product/[id].tsx`
+- 로그인 불필요(공개 카탈로그). 사용자 등록 없음(시드/관리자만) — 배포 시 어필리에이트/크롤링 소스 연동 여지.
+
 ### 공통 네비/인프라
 - 모바일 하단탭: `mobile/src/components/BottomNav.tsx`(커뮤니티/지도/중고거래, `replace`), 화면 등록: `mobile/app/_layout.tsx`
 - 모바일 API/인증: `mobile/src/api/client.ts`(PATCH 포함), `mobile/src/api/types.ts`, `mobile/src/auth/AuthContext.tsx`
@@ -71,5 +78,6 @@
 
 ## 로드맵
 
-커뮤니티 ✅ · 지도 ✅ · 중고거래 ✅ · **쇼핑/물품 비교(예정)**. 배포는 마지막 단계
+커뮤니티 ✅ · 지도 ✅ · 중고거래 ✅ · 쇼핑/물품 비교 ✅. 배포는 마지막 단계
 (영속 디스크 호스트면 SQLite 그대로, 서버리스면 PostgresStore로 교체).
+- 찜(favorite): 중고거래 상품 ✅ · 지도 장소 ✅ (`item_favorites`/`place_favorites`, 토글 API + 목록 필터)

@@ -68,6 +68,20 @@ export function statusStyle(st: string) {
   return itemStatusStyle[st] ?? itemStatusStyle["판매중"];
 }
 
+// 쇼핑/물품 비교 카테고리 + 이모지.
+export const PRODUCT_CATEGORIES = ["사료", "간식", "영양제", "장난감", "미용/위생", "용품"] as const;
+const PRODUCT_CAT_EMOJI: Record<string, string> = {
+  "사료": "🍖",
+  "간식": "🦴",
+  "영양제": "💊",
+  "장난감": "🧸",
+  "미용/위생": "🧼",
+  "용품": "🎒",
+};
+export function productEmoji(category: string): string {
+  return PRODUCT_CAT_EMOJI[category] ?? "🛍️";
+}
+
 export function won(n: number): string {
   return (n || 0).toLocaleString("ko-KR") + "원";
 }

@@ -9,16 +9,20 @@ import type {
   ItemFavoriteState,
   ItemView,
   LikeState,
+  Offer,
   Place,
   PlaceFavoriteState,
   PlaceView,
   Post,
   PostPage,
   PostView,
+  Product,
+  ProductView,
   Review,
   User,
 } from "./types";
 import { SEED_PLACES } from "./seed-places";
+import { SEED_PRODUCTS } from "./seed-products";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
@@ -155,12 +159,34 @@ export class SqliteStore implements Store {
       );
       CREATE INDEX IF NOT EXISTS idx_item_favorites_user ON item_favorites(user_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_item_favorites_item ON item_favorites(item_id);
+
+      CREATE TABLE IF NOT EXISTS products (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        brand TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL,
+        image_url TEXT NOT NULL DEFAULT '',
+        description TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+
+      CREATE TABLE IF NOT EXISTS product_offers (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        shop TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        url TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_offers_product ON product_offers(product_id, price);
     `);
 
     // Additive column migrations for databases created before a column existed.
     this.addColumnIfMissing("posts", "category", "TEXT NOT NULL DEFAULT '자랑'");
 
     this.seedPlacesIfEmpty();
+    this.seedProductsIfEmpty();
   }
 
   private seedPlacesIfEmpty(): void {
@@ -176,6 +202,40 @@ export class SqliteStore implements Store {
     const seed = this.db.transaction(() => {
       for (const p of SEED_PLACES) {
         insert.run(randomUUID(), p.name, p.type, p.address, p.lat, p.lng, now);
+      }
+    });
+    seed();
+  }
+
+  private seedProductsIfEmpty(): void {
+    const { c } = this.db
+      .prepare(`SELECT COUNT(*) AS c FROM products`)
+      .get() as { c: number };
+    if (c > 0) return;
+    const now = new Date().toISOString();
+    const insertProduct = this.db.prepare(
+      `INSERT INTO products (id, name, brand, category, image_url, description, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const insertOffer = this.db.prepare(
+      `INSERT INTO product_offers (id, product_id, shop, price, url, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    );
+    const seed = this.db.transaction(() => {
+      for (const p of SEED_PRODUCTS) {
+        const productId = randomUUID();
+        insertProduct.run(
+          productId,
+          p.name,
+          p.brand,
+          p.category,
+          p.imageUrl,
+          p.description,
+          now,
+        );
+        for (const o of p.offers) {
+          insertOffer.run(randomUUID(), productId, o.shop, o.price, o.url, now);
+        }
       }
     });
     seed();
@@ -734,6 +794,108 @@ export class SqliteStore implements Store {
     return rows.map(mapItemView);
   }
 
+  // ----- Shopping (쇼핑/물품 비교) -----
+  async listProducts(opts?: {
+    category?: string | null;
+    sort?: "lowest" | "latest";
+  }): Promise<ProductView[]> {
+    const params: (string | number)[] = [];
+    let where = "";
+    if (opts?.category) {
+      where = "WHERE p.category = ?";
+      params.push(opts.category);
+    }
+    // lowest: cheapest first, products with no offers (NULL) sorted last.
+    const order =
+      opts?.sort === "lowest"
+        ? `ORDER BY (lowest_price IS NULL), lowest_price ASC, p.rowid DESC`
+        : `ORDER BY p.created_at DESC, p.rowid DESC`;
+    const rows = this.db
+      .prepare(`${PRODUCT_VIEW_SELECT} ${where} ${order}`)
+      .all(...params) as ProductViewRow[];
+    return rows.map(mapProductView);
+  }
+
+  async getProduct(id: string): Promise<ProductView | null> {
+    const row = this.db
+      .prepare(`${PRODUCT_VIEW_SELECT} WHERE p.id = ?`)
+      .get(id) as ProductViewRow | undefined;
+    return row ? mapProductView(row) : null;
+  }
+
+  async listOffers(productId: string): Promise<Offer[]> {
+    // Cheapest first; rowid breaks same-price ties deterministically.
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM product_offers WHERE product_id = ? ORDER BY price ASC, rowid ASC`,
+      )
+      .all(productId) as OfferRow[];
+    return rows.map(mapOffer);
+  }
+
+  async createProduct(data: {
+    name: string;
+    brand: string;
+    category: string;
+    imageUrl: string;
+    description: string;
+  }): Promise<Product> {
+    const product: Product = {
+      id: randomUUID(),
+      name: data.name,
+      brand: data.brand,
+      category: data.category,
+      imageUrl: data.imageUrl,
+      description: data.description,
+      createdAt: new Date().toISOString(),
+    };
+    this.db
+      .prepare(
+        `INSERT INTO products (id, name, brand, category, image_url, description, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        product.id,
+        product.name,
+        product.brand,
+        product.category,
+        product.imageUrl,
+        product.description,
+        product.createdAt,
+      );
+    return product;
+  }
+
+  async addOffer(data: {
+    productId: string;
+    shop: string;
+    price: number;
+    url: string;
+  }): Promise<Offer> {
+    const offer: Offer = {
+      id: randomUUID(),
+      productId: data.productId,
+      shop: data.shop,
+      price: data.price,
+      url: data.url,
+      createdAt: new Date().toISOString(),
+    };
+    this.db
+      .prepare(
+        `INSERT INTO product_offers (id, product_id, shop, price, url, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        offer.id,
+        offer.productId,
+        offer.shop,
+        offer.price,
+        offer.url,
+        offer.createdAt,
+      );
+    return offer;
+  }
+
   // Housekeeping: drop expired sessions. Safe to call periodically.
   deleteExpiredSessions(): void {
     this.db
@@ -938,6 +1100,70 @@ function mapItemView(r: ItemViewRow): ItemView {
     ...mapItem(r),
     favoriteCount: r.favorite_count,
     favoritedByMe: r.favorited_by_me === 1,
+  };
+}
+
+interface ProductRow {
+  id: string;
+  name: string;
+  brand: string;
+  category: string;
+  image_url: string;
+  description: string;
+  created_at: string;
+}
+
+interface ProductViewRow extends ProductRow {
+  offer_count: number;
+  lowest_price: number | null;
+  highest_price: number | null;
+}
+
+interface OfferRow {
+  id: string;
+  product_id: string;
+  shop: string;
+  price: number;
+  url: string;
+  created_at: string;
+}
+
+const PRODUCT_VIEW_SELECT = `
+  SELECT p.*,
+    (SELECT COUNT(*) FROM product_offers o WHERE o.product_id = p.id) AS offer_count,
+    (SELECT MIN(o.price) FROM product_offers o WHERE o.product_id = p.id) AS lowest_price,
+    (SELECT MAX(o.price) FROM product_offers o WHERE o.product_id = p.id) AS highest_price
+  FROM products p`;
+
+function mapProduct(r: ProductRow): Product {
+  return {
+    id: r.id,
+    name: r.name,
+    brand: r.brand,
+    category: r.category,
+    imageUrl: r.image_url,
+    description: r.description,
+    createdAt: r.created_at,
+  };
+}
+
+function mapProductView(r: ProductViewRow): ProductView {
+  return {
+    ...mapProduct(r),
+    offerCount: r.offer_count,
+    lowestPrice: r.lowest_price ?? 0,
+    highestPrice: r.highest_price ?? 0,
+  };
+}
+
+function mapOffer(r: OfferRow): Offer {
+  return {
+    id: r.id,
+    productId: r.product_id,
+    shop: r.shop,
+    price: r.price,
+    url: r.url,
+    createdAt: r.created_at,
   };
 }
 

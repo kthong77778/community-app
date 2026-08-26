@@ -27,6 +27,9 @@ export function Header() {
           <Link href="/items" className="btn btn-sm">
             🛒 중고거래
           </Link>
+          <Link href="/shop" className="btn btn-sm">
+            🛍️ 쇼핑
+          </Link>
           {loading ? null : user ? (
             <>
               <span className="header-user">{user.username}님</span>
