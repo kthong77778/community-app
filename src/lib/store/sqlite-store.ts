@@ -5,6 +5,7 @@ import { dirname, join } from "path";
 import type { Store } from "./Store";
 import type {
   Comment,
+  Item,
   LikeState,
   Place,
   PlaceView,
@@ -116,6 +117,23 @@ export class SqliteStore implements Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_reviews_place ON reviews(place_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS items (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT '판매중',
+        image_url TEXT NOT NULL DEFAULT '',
+        location TEXT NOT NULL,
+        seller_id TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_items_created ON items(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
     `);
 
     // Additive column migrations for databases created before a column existed.
@@ -496,6 +514,97 @@ export class SqliteStore implements Store {
     return info.changes > 0;
   }
 
+  // ----- Marketplace -----
+  async listItems(opts?: {
+    category?: string | null;
+    status?: string | null;
+  }): Promise<Item[]> {
+    const clauses: string[] = [];
+    const params: string[] = [];
+    if (opts?.category) {
+      clauses.push("category = ?");
+      params.push(opts.category);
+    }
+    if (opts?.status) {
+      clauses.push("status = ?");
+      params.push(opts.status);
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM items ${where} ORDER BY created_at DESC, rowid DESC`,
+      )
+      .all(...params) as ItemRow[];
+    return rows.map(mapItem);
+  }
+
+  async getItem(id: string): Promise<Item | null> {
+    const row = this.db
+      .prepare(`SELECT * FROM items WHERE id = ?`)
+      .get(id) as ItemRow | undefined;
+    return row ? mapItem(row) : null;
+  }
+
+  async createItem(data: {
+    title: string;
+    description: string;
+    price: number;
+    category: string;
+    imageUrl: string;
+    location: string;
+    sellerId: string;
+    sellerName: string;
+  }): Promise<Item> {
+    const now = new Date().toISOString();
+    const item: Item = {
+      id: randomUUID(),
+      title: data.title,
+      description: data.description,
+      price: data.price,
+      category: data.category,
+      status: "판매중",
+      imageUrl: data.imageUrl,
+      location: data.location,
+      sellerId: data.sellerId,
+      sellerName: data.sellerName,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.db
+      .prepare(
+        `INSERT INTO items (id, title, description, price, category, status, image_url, location, seller_id, seller_name, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        item.id,
+        item.title,
+        item.description,
+        item.price,
+        item.category,
+        item.status,
+        item.imageUrl,
+        item.location,
+        item.sellerId,
+        item.sellerName,
+        item.createdAt,
+        item.updatedAt,
+      );
+    return item;
+  }
+
+  async updateItemStatus(id: string, status: string): Promise<Item | null> {
+    const info = this.db
+      .prepare(`UPDATE items SET status = ?, updated_at = ? WHERE id = ?`)
+      .run(status, new Date().toISOString(), id);
+    if (info.changes === 0) return null;
+    return this.getItem(id);
+  }
+
+  async deleteItem(id: string): Promise<boolean> {
+    const info = this.db.prepare(`DELETE FROM items WHERE id = ?`).run(id);
+    return info.changes > 0;
+  }
+
   // Housekeeping: drop expired sessions. Safe to call periodically.
   deleteExpiredSessions(): void {
     this.db
@@ -639,6 +748,38 @@ function mapReview(r: ReviewRow): Review {
     rating: r.rating,
     text: r.text,
     createdAt: r.created_at,
+  };
+}
+
+interface ItemRow {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  status: string;
+  image_url: string;
+  location: string;
+  seller_id: string;
+  seller_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapItem(r: ItemRow): Item {
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    price: r.price,
+    category: r.category,
+    status: r.status,
+    imageUrl: r.image_url,
+    location: r.location,
+    sellerId: r.seller_id,
+    sellerName: r.seller_name,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   };
 }
 

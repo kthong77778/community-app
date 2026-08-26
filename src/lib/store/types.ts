@@ -84,3 +84,19 @@ export interface Review {
   text: string;
   createdAt: string;
 }
+
+// ----- Marketplace (중고거래) -----
+export interface Item {
+  id: string;
+  title: string;
+  description: string;
+  price: number; // KRW
+  category: string; // ITEM_CATEGORIES
+  status: string; // ITEM_STATUSES (판매중/예약중/판매완료)
+  imageUrl: string; // optional; "" when none
+  location: string;
+  sellerId: string;
+  sellerName: string;
+  createdAt: string;
+  updatedAt: string;
+}

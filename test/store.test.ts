@@ -215,6 +215,54 @@ describe("places + reviews", () => {
   });
 });
 
+describe("marketplace items", () => {
+  async function makeItem(over: Partial<Parameters<typeof store.createItem>[0]> = {}) {
+    return store.createItem({
+      title: "강아지 자동급식기",
+      description: "거의 새것",
+      price: 25000,
+      category: "기타",
+      imageUrl: "",
+      location: "서울 마포구",
+      sellerId: "seller1",
+      sellerName: "seller1",
+      ...over,
+    });
+  }
+
+  it("creates a listing defaulting to 판매중", async () => {
+    const item = await makeItem();
+    assert.equal(item.status, "판매중");
+    assert.equal(item.price, 25000);
+  });
+
+  it("lists newest-first and filters by category and status", async () => {
+    await makeItem({ title: "A", category: "장난감" });
+    await makeItem({ title: "B", category: "의류" });
+    const c = await makeItem({ title: "C", category: "장난감" });
+
+    const all = await store.listItems();
+    assert.equal(all.length, 3);
+    assert.equal(all[0].id, c.id); // newest first
+
+    const toys = await store.listItems({ category: "장난감" });
+    assert.equal(toys.length, 2);
+    assert.ok(toys.every((i) => i.category === "장난감"));
+
+    await store.updateItemStatus(c.id, "판매완료");
+    const onSale = await store.listItems({ status: "판매중" });
+    assert.equal(onSale.length, 2);
+  });
+
+  it("updates status and deletes", async () => {
+    const item = await makeItem();
+    const updated = await store.updateItemStatus(item.id, "예약중");
+    assert.equal(updated?.status, "예약중");
+    assert.equal(await store.deleteItem(item.id), true);
+    assert.equal(await store.getItem(item.id), null);
+  });
+});
+
 describe("comments", () => {
   it("adds, lists, and counts comments", async () => {
     const u = await makeUser();

@@ -1,5 +1,6 @@
 import type {
   Comment,
+  Item,
   LikeState,
   Place,
   PlaceView,
@@ -92,4 +93,23 @@ export interface Store {
   listReviews(placeId: string): Promise<Review[]>; // newest first
   getReviewById(id: string): Promise<Review | null>;
   deleteReview(id: string): Promise<boolean>;
+
+  // ----- Marketplace (중고거래) -----
+  listItems(opts?: {
+    category?: string | null;
+    status?: string | null;
+  }): Promise<Item[]>; // newest first
+  getItem(id: string): Promise<Item | null>;
+  createItem(data: {
+    title: string;
+    description: string;
+    price: number;
+    category: string;
+    imageUrl: string;
+    location: string;
+    sellerId: string;
+    sellerName: string;
+  }): Promise<Item>;
+  updateItemStatus(id: string, status: string): Promise<Item | null>;
+  deleteItem(id: string): Promise<boolean>;
 }

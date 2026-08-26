@@ -20,6 +20,10 @@ export const LIMITS = {
   contentMax: 5000,
   commentMax: 1000,
   reviewMax: 500,
+  itemTitleMax: 60,
+  itemDescMax: 1000,
+  locationMax: 40,
+  priceMax: 100000000,
 };
 
 export function validateUsername(value: unknown): string | null {
