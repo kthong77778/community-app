@@ -21,6 +21,9 @@ export function Header() {
           🐾 댕냥마을
         </Link>
         <div className="header-actions">
+          <Link href="/map" className="btn btn-sm">
+            🗺️ 지도
+          </Link>
           {loading ? null : user ? (
             <>
               <span className="header-user">{user.username}님</span>
