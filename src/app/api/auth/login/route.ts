@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { issueSession, toPublicUser, verifyPassword } from "@/lib/auth";
+import { verifyCredentials } from "@/lib/accounts";
+import { issueSession, toPublicUser } from "@/lib/auth";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
-import { getStore } from "@/lib/store";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -25,17 +25,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const store = getStore();
-  const user = await store.getUserByUsername(username);
-  // Verify even when the user is missing to keep timing roughly constant.
-  const ok = user ? verifyPassword(password, user.passwordHash) : false;
-  if (!user || !ok) {
+  // Credentials are checked against the hardcoded accounts.json.
+  const account = verifyCredentials(username, password);
+  if (!account) {
     return NextResponse.json(
       { error: "아이디 또는 비밀번호가 올바르지 않습니다." },
       { status: 401 },
     );
   }
 
-  const token = await issueSession(user.id);
-  return NextResponse.json({ user: toPublicUser(user), token });
+  const token = await issueSession(account.username);
+  return NextResponse.json({
+    user: toPublicUser({ id: account.username, username: account.username }),
+    token,
+  });
 }

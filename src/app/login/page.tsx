@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
@@ -80,10 +79,7 @@ function LoginForm() {
           {submitting ? "로그인 중..." : "로그인"}
         </button>
       </form>
-      <p className="auth-switch">
-        계정이 없으신가요?{" "}
-        <Link href={`/register?next=${encodeURIComponent(next)}`}>회원가입</Link>
-      </p>
+      <p className="auth-switch">관리자에게 발급받은 계정으로 로그인하세요.</p>
     </div>
   );
 }

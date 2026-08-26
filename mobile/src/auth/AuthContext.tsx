@@ -25,7 +25,6 @@ interface AuthContextValue {
   user: PublicUser | null;
   loading: boolean; // true while restoring the session on startup
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -89,17 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persist],
   );
 
-  const register = useCallback(
-    async (username: string, password: string) => {
-      const res = await apiRequest<AuthResponse>("/api/auth/register", {
-        method: "POST",
-        body: { username, password },
-      });
-      await persist(res);
-    },
-    [persist],
-  );
-
   const logout = useCallback(async () => {
     try {
       await apiRequest("/api/auth/logout", { method: "POST" });
@@ -112,8 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, login, logout }),
+    [user, loading, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

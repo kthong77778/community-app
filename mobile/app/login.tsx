@@ -1,4 +1,4 @@
-import { Link, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -76,12 +76,9 @@ export default function LoginScreen() {
             {submitting ? "로그인 중..." : "로그인"}
           </Text>
         </Pressable>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>계정이 없으신가요? </Text>
-          <Link href="/register" style={styles.switchLink}>
-            회원가입
-          </Link>
-        </View>
+        <Text style={[styles.switchText, { textAlign: "center", marginTop: 16 }]}>
+          관리자에게 발급받은 계정으로 로그인하세요.
+        </Text>
       </View>
     </KeyboardAvoidingView>
   );

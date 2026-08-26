@@ -32,14 +32,9 @@ export function Header() {
               </button>
             </>
           ) : (
-            <>
-              <Link href="/login" className="btn btn-sm">
-                로그인
-              </Link>
-              <Link href="/register" className="btn btn-sm btn-primary">
-                회원가입
-              </Link>
-            </>
+            <Link href="/login" className="btn btn-sm btn-primary">
+              로그인
+            </Link>
           )}
         </div>
       </div>
