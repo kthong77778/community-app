@@ -1,9 +1,12 @@
 import type {
   Comment,
   LikeState,
+  Place,
+  PlaceView,
   Post,
   PostPage,
   PostView,
+  Review,
   User,
 } from "./types";
 
@@ -65,4 +68,28 @@ export interface Store {
   listComments(postId: string): Promise<Comment[]>; // oldest first
   getCommentById(id: string): Promise<Comment | null>;
   deleteComment(id: string): Promise<boolean>;
+
+  // ----- Places (map) -----
+  // Lists places (optionally filtered by type) with review aggregates.
+  listPlaces(type?: string | null): Promise<PlaceView[]>;
+  getPlace(id: string): Promise<PlaceView | null>;
+  createPlace(data: {
+    name: string;
+    type: string;
+    address: string;
+    lat: number;
+    lng: number;
+  }): Promise<PlaceView>;
+
+  // ----- Reviews -----
+  addReview(data: {
+    placeId: string;
+    authorId: string;
+    authorName: string;
+    rating: number;
+    text: string;
+  }): Promise<Review>;
+  listReviews(placeId: string): Promise<Review[]>; // newest first
+  getReviewById(id: string): Promise<Review | null>;
+  deleteReview(id: string): Promise<boolean>;
 }

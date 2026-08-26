@@ -55,3 +55,32 @@ export interface PostPage {
   hasMore: boolean;
   nextOffset: number;
 }
+
+// ----- Places (map) + reviews -----
+
+// Place types shown on the map: 카페 / 샵 / 호텔 / 병원
+export interface Place {
+  id: string;
+  name: string;
+  type: string;
+  address: string;
+  lat: number;
+  lng: number;
+  createdAt: string;
+}
+
+// A place enriched with its review aggregates.
+export interface PlaceView extends Place {
+  reviewCount: number;
+  avgRating: number; // 0 when no reviews
+}
+
+export interface Review {
+  id: string;
+  placeId: string;
+  authorId: string;
+  authorName: string;
+  rating: number; // 1..5
+  text: string;
+  createdAt: string;
+}

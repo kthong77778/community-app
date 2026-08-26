@@ -19,6 +19,7 @@ export const LIMITS = {
   titleMax: 120,
   contentMax: 5000,
   commentMax: 1000,
+  reviewMax: 500,
 };
 
 export function validateUsername(value: unknown): string | null {

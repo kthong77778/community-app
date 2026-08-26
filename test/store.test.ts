@@ -175,6 +175,46 @@ describe("categories", () => {
   });
 });
 
+describe("places + reviews", () => {
+  it("seeds default places and filters by type", async () => {
+    const all = await store.listPlaces();
+    assert.ok(all.length >= 6, "default places should be seeded");
+    const hospitals = await store.listPlaces("병원");
+    assert.ok(hospitals.length >= 1);
+    assert.ok(hospitals.every((p) => p.type === "병원"));
+  });
+
+  it("starts places with no reviews", async () => {
+    const [place] = await store.listPlaces();
+    assert.equal(place.reviewCount, 0);
+    assert.equal(place.avgRating, 0);
+  });
+
+  it("adds reviews and computes the average rating", async () => {
+    const u = await makeUser();
+    const [place] = await store.listPlaces();
+    await store.addReview({ placeId: place.id, authorId: u.id, authorName: u.username, rating: 5, text: "최고예요" });
+    await store.addReview({ placeId: place.id, authorId: u.id, authorName: u.username, rating: 4, text: "좋아요" });
+
+    const view = await store.getPlace(place.id);
+    assert.equal(view?.reviewCount, 2);
+    assert.equal(view?.avgRating, 4.5);
+
+    const reviews = await store.listReviews(place.id);
+    assert.equal(reviews.length, 2);
+    assert.equal(reviews[0].text, "좋아요"); // newest first
+  });
+
+  it("cascades review deletion — reviews reference a place", async () => {
+    const u = await makeUser();
+    const place = await store.createPlace({ name: "테스트샵", type: "샵", address: "어딘가", lat: 37.5, lng: 127 });
+    const r = await store.addReview({ placeId: place.id, authorId: u.id, authorName: u.username, rating: 3, text: "보통" });
+    assert.ok(await store.getReviewById(r.id));
+    assert.equal(await store.deleteReview(r.id), true);
+    assert.equal(await store.getReviewById(r.id), null);
+  });
+});
+
 describe("comments", () => {
   it("adds, lists, and counts comments", async () => {
     const u = await makeUser();

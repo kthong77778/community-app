@@ -6,11 +6,15 @@ import type { Store } from "./Store";
 import type {
   Comment,
   LikeState,
+  Place,
+  PlaceView,
   Post,
   PostPage,
   PostView,
+  Review,
   User,
 } from "./types";
+import { SEED_PLACES } from "./seed-places";
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
@@ -90,10 +94,52 @@ export class SqliteStore implements Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS places (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        address TEXT NOT NULL,
+        lat REAL NOT NULL,
+        lng REAL NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_places_type ON places(type);
+
+      CREATE TABLE IF NOT EXISTS reviews (
+        id TEXT PRIMARY KEY,
+        place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+        author_id TEXT NOT NULL,
+        author_name TEXT NOT NULL,
+        rating INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_reviews_place ON reviews(place_id, created_at);
     `);
 
     // Additive column migrations for databases created before a column existed.
     this.addColumnIfMissing("posts", "category", "TEXT NOT NULL DEFAULT '자랑'");
+
+    this.seedPlacesIfEmpty();
+  }
+
+  private seedPlacesIfEmpty(): void {
+    const { c } = this.db.prepare(`SELECT COUNT(*) AS c FROM places`).get() as {
+      c: number;
+    };
+    if (c > 0) return;
+    const now = new Date().toISOString();
+    const insert = this.db.prepare(
+      `INSERT INTO places (id, name, type, address, lat, lng, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const seed = this.db.transaction(() => {
+      for (const p of SEED_PLACES) {
+        insert.run(randomUUID(), p.name, p.type, p.address, p.lat, p.lng, now);
+      }
+    });
+    seed();
   }
 
   private addColumnIfMissing(table: string, column: string, decl: string): void {
@@ -362,6 +408,94 @@ export class SqliteStore implements Store {
     return info.changes > 0;
   }
 
+  // ----- Places -----
+  async listPlaces(type?: string | null): Promise<PlaceView[]> {
+    const where = type ? `WHERE p.type = ?` : ``;
+    const rows = this.db
+      .prepare(`${PLACE_VIEW_SELECT} ${where} ORDER BY p.rowid ASC`)
+      .all(...(type ? [type] : [])) as PlaceViewRow[];
+    return rows.map(mapPlaceView);
+  }
+
+  async getPlace(id: string): Promise<PlaceView | null> {
+    const row = this.db
+      .prepare(`${PLACE_VIEW_SELECT} WHERE p.id = ?`)
+      .get(id) as PlaceViewRow | undefined;
+    return row ? mapPlaceView(row) : null;
+  }
+
+  async createPlace(data: {
+    name: string;
+    type: string;
+    address: string;
+    lat: number;
+    lng: number;
+  }): Promise<PlaceView> {
+    const id = randomUUID();
+    this.db
+      .prepare(
+        `INSERT INTO places (id, name, type, address, lat, lng, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(id, data.name, data.type, data.address, data.lat, data.lng, new Date().toISOString());
+    return (await this.getPlace(id))!;
+  }
+
+  // ----- Reviews -----
+  async addReview(data: {
+    placeId: string;
+    authorId: string;
+    authorName: string;
+    rating: number;
+    text: string;
+  }): Promise<Review> {
+    const review: Review = {
+      id: randomUUID(),
+      placeId: data.placeId,
+      authorId: data.authorId,
+      authorName: data.authorName,
+      rating: data.rating,
+      text: data.text,
+      createdAt: new Date().toISOString(),
+    };
+    this.db
+      .prepare(
+        `INSERT INTO reviews (id, place_id, author_id, author_name, rating, text, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        review.id,
+        review.placeId,
+        review.authorId,
+        review.authorName,
+        review.rating,
+        review.text,
+        review.createdAt,
+      );
+    return review;
+  }
+
+  async listReviews(placeId: string): Promise<Review[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM reviews WHERE place_id = ? ORDER BY created_at DESC, rowid DESC`,
+      )
+      .all(placeId) as ReviewRow[];
+    return rows.map(mapReview);
+  }
+
+  async getReviewById(id: string): Promise<Review | null> {
+    const row = this.db
+      .prepare(`SELECT * FROM reviews WHERE id = ?`)
+      .get(id) as ReviewRow | undefined;
+    return row ? mapReview(row) : null;
+  }
+
+  async deleteReview(id: string): Promise<boolean> {
+    const info = this.db.prepare(`DELETE FROM reviews WHERE id = ?`).run(id);
+    return info.changes > 0;
+  }
+
   // Housekeeping: drop expired sessions. Safe to call periodically.
   deleteExpiredSessions(): void {
     this.db
@@ -449,6 +583,61 @@ function mapComment(r: CommentRow): Comment {
     content: r.content,
     authorId: r.author_id,
     authorName: r.author_name,
+    createdAt: r.created_at,
+  };
+}
+
+interface PlaceRow {
+  id: string;
+  name: string;
+  type: string;
+  address: string;
+  lat: number;
+  lng: number;
+  created_at: string;
+}
+interface PlaceViewRow extends PlaceRow {
+  review_count: number;
+  avg_rating: number | null;
+}
+interface ReviewRow {
+  id: string;
+  place_id: string;
+  author_id: string;
+  author_name: string;
+  rating: number;
+  text: string;
+  created_at: string;
+}
+
+const PLACE_VIEW_SELECT = `
+  SELECT p.*,
+    (SELECT COUNT(*) FROM reviews r WHERE r.place_id = p.id) AS review_count,
+    (SELECT AVG(r.rating) FROM reviews r WHERE r.place_id = p.id) AS avg_rating
+  FROM places p`;
+
+function mapPlaceView(r: PlaceViewRow): PlaceView {
+  return {
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    address: r.address,
+    lat: r.lat,
+    lng: r.lng,
+    createdAt: r.created_at,
+    reviewCount: r.review_count,
+    avgRating: r.avg_rating ? Math.round(r.avg_rating * 10) / 10 : 0,
+  };
+}
+
+function mapReview(r: ReviewRow): Review {
+  return {
+    id: r.id,
+    placeId: r.place_id,
+    authorId: r.author_id,
+    authorName: r.author_name,
+    rating: r.rating,
+    text: r.text,
     createdAt: r.created_at,
   };
 }
