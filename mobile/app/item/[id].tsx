@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { ApiError, apiRequest } from "@/api/client";
-import type { Item } from "@/api/types";
+import type { Conversation, Item } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
 import {
@@ -85,6 +85,22 @@ export default function ItemDetailScreen() {
       Alert.alert("오류", err instanceof ApiError ? err.message : "찜 처리 실패");
     } finally {
       setFavBusy(false);
+    }
+  }
+
+  async function startChat() {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    try {
+      const data = await apiRequest<{ conversation: Conversation }>(
+        "/api/conversations",
+        { method: "POST", body: { itemId: id } },
+      );
+      router.push(`/chat/${data.conversation.id}`);
+    } catch (err) {
+      Alert.alert("오류", err instanceof ApiError ? err.message : "채팅을 시작할 수 없습니다.");
     }
   }
 
@@ -193,17 +209,11 @@ export default function ItemDetailScreen() {
 
           <Text style={styles.desc}>{item.description}</Text>
 
-          <Pressable
-            style={styles.chatBtn}
-            onPress={() =>
-              Alert.alert(
-                `${item.sellerName}님과의 채팅`,
-                "실제 앱에서는 판매자와 1:1 채팅으로 연결됩니다.",
-              )
-            }
-          >
-            <Text style={styles.chatText}>💬 채팅하기</Text>
-          </Pressable>
+          {!isSeller && (
+            <Pressable style={styles.chatBtn} onPress={startChat}>
+              <Text style={styles.chatText}>💬 채팅하기</Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
     </View>

@@ -107,3 +107,30 @@ export interface ProductView extends Product {
   lowestPrice: number; // 0 when no offers
   highestPrice: number; // 0 when no offers
 }
+
+// 중고거래 1:1 채팅 — 구매자↔판매자 대화/메시지.
+export interface Conversation {
+  id: string;
+  itemId: string | null;
+  buyerId: string;
+  sellerId: string;
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface ConversationView extends Conversation {
+  otherUserId: string; // 상대방(표시 이름). 내 id가 아닌 참여자
+  itemTitle: string | null; // 상품 삭제 시 null
+  itemImageUrl: string | null;
+  itemPrice: number | null;
+  itemStatus: string | null;
+  lastMessageText: string | null;
+}

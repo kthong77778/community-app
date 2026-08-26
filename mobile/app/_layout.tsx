@@ -23,6 +23,8 @@ export default function RootLayout() {
           <Stack.Screen name="place/[id]" options={{ title: "장소" }} />
           <Stack.Screen name="market" options={{ title: "중고거래" }} />
           <Stack.Screen name="item/[id]" options={{ title: "상품" }} />
+          <Stack.Screen name="chats" options={{ title: "채팅" }} />
+          <Stack.Screen name="chat/[id]" options={{ title: "채팅" }} />
           <Stack.Screen name="shop" options={{ title: "쇼핑" }} />
           <Stack.Screen name="product/[id]" options={{ title: "상품" }} />
           <Stack.Screen name="sell" options={{ title: "상품 등록", presentation: "modal" }} />
