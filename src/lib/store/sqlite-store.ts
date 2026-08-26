@@ -190,7 +190,9 @@ export class SqliteStore implements Store {
         buyer_id TEXT NOT NULL,
         seller_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        last_message_at TEXT NOT NULL
+        last_message_at TEXT NOT NULL,
+        buyer_read_at TEXT,
+        seller_read_at TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_conv_buyer ON conversations(buyer_id, last_message_at DESC);
       CREATE INDEX IF NOT EXISTS idx_conv_seller ON conversations(seller_id, last_message_at DESC);
@@ -208,6 +210,8 @@ export class SqliteStore implements Store {
 
     // Additive column migrations for databases created before a column existed.
     this.addColumnIfMissing("posts", "category", "TEXT NOT NULL DEFAULT '자랑'");
+    this.addColumnIfMissing("conversations", "buyer_read_at", "TEXT");
+    this.addColumnIfMissing("conversations", "seller_read_at", "TEXT");
 
     this.seedPlacesIfEmpty();
     this.seedProductsIfEmpty();
@@ -972,13 +976,14 @@ export class SqliteStore implements Store {
   }
 
   async listConversations(userId: string): Promise<ConversationView[]> {
+    // CONVO_VIEW_SELECT's unread subquery binds the viewer twice, before WHERE.
     const rows = this.db
       .prepare(
         `${CONVO_VIEW_SELECT}
          WHERE c.buyer_id = ? OR c.seller_id = ?
          ORDER BY c.last_message_at DESC, c.rowid DESC`,
       )
-      .all(userId, userId) as ConversationViewRow[];
+      .all(userId, userId, userId, userId) as ConversationViewRow[];
     return rows.map((r) => mapConversationView(r, userId));
   }
 
@@ -991,8 +996,40 @@ export class SqliteStore implements Store {
         `${CONVO_VIEW_SELECT}
          WHERE c.id = ? AND (c.buyer_id = ? OR c.seller_id = ?)`,
       )
-      .get(id, userId, userId) as ConversationViewRow | undefined;
+      .get(userId, userId, id, userId, userId) as ConversationViewRow | undefined;
     return row ? mapConversationView(row, userId) : null;
+  }
+
+  async markConversationRead(
+    conversationId: string,
+    userId: string,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    // Only the row where the user is that participant is updated.
+    this.db
+      .prepare(
+        `UPDATE conversations SET buyer_read_at = ? WHERE id = ? AND buyer_id = ?`,
+      )
+      .run(now, conversationId, userId);
+    this.db
+      .prepare(
+        `UPDATE conversations SET seller_read_at = ? WHERE id = ? AND seller_id = ?`,
+      )
+      .run(now, conversationId, userId);
+  }
+
+  async getTotalUnread(userId: string): Promise<number> {
+    const { c } = this.db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM messages m
+         JOIN conversations con ON con.id = m.conversation_id
+         WHERE (con.buyer_id = ? OR con.seller_id = ?)
+           AND m.sender_id != ?
+           AND m.created_at > COALESCE(
+             CASE WHEN con.buyer_id = ? THEN con.buyer_read_at ELSE con.seller_read_at END, '')`,
+      )
+      .get(userId, userId, userId, userId) as { c: number };
+    return c;
   }
 
   async listMessages(conversationId: string): Promise<Message[]> {
@@ -1323,6 +1360,7 @@ interface ConversationViewRow extends ConversationRow {
   item_price: number | null;
   item_status: string | null;
   last_message_text: string | null;
+  unread_count: number;
 }
 
 interface MessageRow {
@@ -1333,6 +1371,8 @@ interface MessageRow {
   created_at: string;
 }
 
+// The unread subquery binds the viewer id twice (sender-not-me, then the
+// buyer/seller CASE), so those two `?` come first in any query using this.
 const CONVO_VIEW_SELECT = `
   SELECT c.*,
     i.title AS item_title,
@@ -1340,7 +1380,12 @@ const CONVO_VIEW_SELECT = `
     i.price AS item_price,
     i.status AS item_status,
     (SELECT m.text FROM messages m WHERE m.conversation_id = c.id
-       ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_message_text
+       ORDER BY m.created_at DESC, m.rowid DESC LIMIT 1) AS last_message_text,
+    (SELECT COUNT(*) FROM messages m2 WHERE m2.conversation_id = c.id
+       AND m2.sender_id != ?
+       AND m2.created_at > COALESCE(
+         CASE WHEN c.buyer_id = ? THEN c.buyer_read_at ELSE c.seller_read_at END, ''))
+      AS unread_count
   FROM conversations c
   LEFT JOIN items i ON i.id = c.item_id`;
 
@@ -1367,6 +1412,7 @@ function mapConversationView(
     itemPrice: r.item_price,
     itemStatus: r.item_status,
     lastMessageText: r.last_message_text,
+    unreadCount: r.unread_count,
   };
 }
 

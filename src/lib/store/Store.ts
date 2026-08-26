@@ -196,4 +196,9 @@ export interface Store {
     senderId: string;
     text: string;
   }): Promise<Message>;
+  // Marks the conversation read up to now for the given participant. No-op if
+  // the user isn't a participant.
+  markConversationRead(conversationId: string, userId: string): Promise<void>;
+  // Total unread messages across all the user's conversations (for a nav badge).
+  getTotalUnread(userId: string): Promise<number>;
 }

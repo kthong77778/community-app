@@ -2,11 +2,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 
 export function Header() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
+  const [unread, setUnread] = useState(0);
+
+  // Poll the unread total so the 채팅 link shows a live badge.
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    let alive = true;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch("/api/conversations/unread-count", {
+          cache: "no-store",
+        });
+        if (res.ok && alive) setUnread((await res.json()).count);
+      } catch {
+        // ignore transient errors
+      }
+    };
+    void fetchCount();
+    const iv = setInterval(fetchCount, 20000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, [user]);
 
   async function handleLogout() {
     await logout();
@@ -32,8 +59,11 @@ export function Header() {
           </Link>
           {loading ? null : user ? (
             <>
-              <Link href="/chats" className="btn btn-sm">
+              <Link href="/chats" className="btn btn-sm chat-link">
                 💬 채팅
+                {unread > 0 && (
+                  <span className="nav-badge">{unread > 99 ? "99+" : unread}</span>
+                )}
               </Link>
               <span className="header-user">{user.username}님</span>
               <button className="btn btn-sm" onClick={handleLogout}>

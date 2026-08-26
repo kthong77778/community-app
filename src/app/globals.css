@@ -573,3 +573,13 @@ main {
 .msg-form { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 10px 0;
   background: var(--bg); border-top: 1px solid var(--border); }
 .msg-form .input { flex: 1; }
+
+/* 안 읽음 뱃지 */
+.chat-link { position: relative; }
+.nav-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  margin-left: 6px; border-radius: 999px; background: var(--like); color: #fff;
+  font-size: 11px; font-weight: 800; line-height: 1; vertical-align: middle; }
+.chat-row.unread .chat-name { font-weight: 800; }
+.chat-row.unread .chat-last { color: var(--text); font-weight: 600; }
+.chat-unread { flex: 0 0 auto; display: inline-grid; place-items: center; min-width: 20px; height: 20px;
+  padding: 0 6px; border-radius: 999px; background: var(--like); color: #fff; font-size: 12px; font-weight: 800; }

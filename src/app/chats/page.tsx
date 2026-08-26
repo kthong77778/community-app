@@ -22,8 +22,13 @@ export default function ChatsPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (user) void load();
-    else setStatus("ready");
+    if (!user) {
+      setStatus("ready");
+      return;
+    }
+    void load();
+    const iv = setInterval(() => void load(), 5000); // 실시간 갱신
+    return () => clearInterval(iv);
   }, [loading, user, load]);
 
   if (loading || status === "loading") return <p className="muted">불러오는 중...</p>;
@@ -56,7 +61,11 @@ export default function ChatsPage() {
       ) : (
         <div className="chat-list">
           {convos.map((c) => (
-            <Link key={c.id} href={`/chats/${c.id}`} className="chat-row">
+            <Link
+              key={c.id}
+              href={`/chats/${c.id}`}
+              className={`chat-row ${c.unreadCount > 0 ? "unread" : ""}`}
+            >
               <span className="chat-thumb">
                 {c.itemImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -77,6 +86,11 @@ export default function ChatsPage() {
                   {c.lastMessageText ?? "대화를 시작해보세요"}
                 </span>
               </span>
+              {c.unreadCount > 0 && (
+                <span className="chat-unread">
+                  {c.unreadCount > 99 ? "99+" : c.unreadCount}
+                </span>
+              )}
             </Link>
           ))}
         </div>

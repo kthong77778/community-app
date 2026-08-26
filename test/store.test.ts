@@ -542,6 +542,42 @@ describe("chat (conversations + messages)", () => {
     assert.equal(list[0].itemTitle, null); // item gone, thread stays
     assert.equal(list[0].lastMessageText, "안녕");
   });
+
+  it("counts unread from the other party and clears on read", async () => {
+    const tick = () => new Promise((r) => setTimeout(r, 6));
+    const item = await seedItem("seller");
+    const c = await store.getOrCreateConversation({ itemId: item.id, buyerId: "buyer", sellerId: "seller" });
+    await store.sendMessage({ conversationId: c.id, senderId: "seller", text: "안녕하세요" });
+    await store.sendMessage({ conversationId: c.id, senderId: "seller", text: "구매 원하시나요?" });
+
+    // Buyer has 2 unread; the seller (sender) has 0.
+    assert.equal((await store.listConversations("buyer"))[0].unreadCount, 2);
+    assert.equal((await store.listConversations("seller"))[0].unreadCount, 0);
+    assert.equal(await store.getTotalUnread("buyer"), 2);
+
+    // Reading the thread clears it; a later message counts again.
+    await store.markConversationRead(c.id, "buyer");
+    assert.equal(await store.getTotalUnread("buyer"), 0);
+    await tick();
+    await store.sendMessage({ conversationId: c.id, senderId: "seller", text: "재고 있어요" });
+    assert.equal(await store.getTotalUnread("buyer"), 1);
+
+    // The buyer's own message never counts as unread for the buyer.
+    await store.sendMessage({ conversationId: c.id, senderId: "buyer", text: "네 살게요" });
+    const after = await store.getConversationForUser(c.id, "buyer");
+    assert.equal(after?.unreadCount, 1);
+  });
+
+  it("sums unread across multiple conversations", async () => {
+    const a = await seedItem("s1");
+    const b = await seedItem("s2");
+    const ca = await store.getOrCreateConversation({ itemId: a.id, buyerId: "buyer", sellerId: "s1" });
+    const cb = await store.getOrCreateConversation({ itemId: b.id, buyerId: "buyer", sellerId: "s2" });
+    await store.sendMessage({ conversationId: ca.id, senderId: "s1", text: "1" });
+    await store.sendMessage({ conversationId: cb.id, senderId: "s2", text: "2" });
+    await store.sendMessage({ conversationId: cb.id, senderId: "s2", text: "3" });
+    assert.equal(await store.getTotalUnread("buyer"), 3);
+  });
 });
 
 describe("comments", () => {

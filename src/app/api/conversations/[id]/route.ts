@@ -17,5 +17,8 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "대화를 찾을 수 없습니다." }, { status: 404 });
   }
   const messages = await store.listMessages(id);
+  // Opening the thread marks it read for this participant.
+  await store.markConversationRead(id, user.id);
+  conversation.unreadCount = 0;
   return NextResponse.json({ conversation, messages });
 }

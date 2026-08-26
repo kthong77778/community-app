@@ -179,4 +179,5 @@ export interface ConversationView extends Conversation {
   itemPrice: number | null;
   itemStatus: string | null;
   lastMessageText: string | null; // null when no messages yet
+  unreadCount: number; // messages from the other party since the viewer last read
 }

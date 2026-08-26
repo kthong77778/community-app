@@ -36,6 +36,25 @@ export default function ChatRoomPage() {
     if (!loading && user) void load();
   }, [loading, user, load]);
 
+  // Poll for new messages while the thread is open (also marks it read server-side).
+  // Only swap the array when the count changed, so the scroll effect stays quiet.
+  useEffect(() => {
+    if (loading || !user) return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setMessages((prev) =>
+          prev.length === data.messages.length ? prev : data.messages,
+        );
+      } catch {
+        // ignore transient errors
+      }
+    }, 4000);
+    return () => clearInterval(iv);
+  }, [id, loading, user]);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
