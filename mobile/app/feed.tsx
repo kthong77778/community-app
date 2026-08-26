@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { apiRequest } from "@/api/client";
 import type { PostPage, PostView } from "@/api/types";
+import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
 import { CATEGORIES, catStyle, colors, radius } from "@/theme";
@@ -106,11 +107,6 @@ export default function FeedScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerLeft: () => (
-            <Link href="/map" style={styles.headerLink}>
-              🗺️ 지도
-            </Link>
-          ),
           headerRight: () =>
             user ? (
               <View style={styles.headerRight}>
@@ -151,6 +147,7 @@ export default function FeedScreen() {
       ) : (
         <FlatList
           data={posts}
+          style={styles.list}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -205,6 +202,8 @@ export default function FeedScreen() {
       <Pressable style={styles.fab} onPress={onWrite}>
         <Text style={styles.fabText}>＋ 글쓰기</Text>
       </Pressable>
+
+      <BottomNav active="feed" />
     </View>
   );
 }
@@ -212,6 +211,7 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  list: { flex: 1 },
   listContent: { padding: 12, paddingBottom: 96 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
   headerUser: { color: colors.textMuted, fontSize: 14 },
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 28,
+    bottom: 72,
     backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 14,

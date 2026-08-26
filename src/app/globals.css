@@ -460,3 +460,33 @@ main {
 .rv-stars { color: #f59e0b; font-size: 13px; }
 .rv-time { color: var(--text-muted); font-size: 12px; margin: 2px 0 5px; }
 .rv-body { font-size: 14.5px; white-space: pre-wrap; word-break: break-word; }
+
+/* ----- 중고거래 ----- */
+.st-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; }
+.item-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.item-card { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; box-shadow: var(--shadow); }
+.item-card:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.item-card.done { opacity: .62; }
+.thumb-wrap { position: relative; }
+.thumb { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; background: var(--surface-2); display: block; }
+.thumb-emoji { display: grid; place-items: center; font-size: 44px; }
+.thumb-wrap .st-badge { position: absolute; left: 8px; top: 8px; }
+.item-body { padding: 10px 12px 12px; }
+.item-title { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.item-price { font-size: 16px; font-weight: 800; margin-top: 4px; }
+.item-sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+.item-hero { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); background: var(--surface-2);
+  border: 1px solid var(--border); margin-bottom: 14px; }
+.item-hero.thumb-emoji { display: grid; place-items: center; font-size: 76px; }
+.item-detail { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+.item-detail-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.item-detail h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 6px; word-break: break-word; }
+.item-price-lg { font-size: 26px; font-weight: 800; }
+.cat-chip { background: var(--surface-2); color: var(--text-muted); }
+.status-ctl { display: flex; gap: 8px; margin-bottom: 14px; }
+.st-opt { flex: 1; padding: 9px 0; border-radius: 9px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); font-size: 13px; font-weight: 700; cursor: pointer; }
+.st-opt.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-strong); }
+.item-desc { font-size: 15px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; margin: 16px 0; }

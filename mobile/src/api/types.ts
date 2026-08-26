@@ -58,3 +58,18 @@ export interface Review {
   text: string;
   createdAt: string;
 }
+
+export interface Item {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  status: string;
+  imageUrl: string;
+  location: string;
+  sellerId: string;
+  sellerName: string;
+  createdAt: string;
+  updatedAt: string;
+}

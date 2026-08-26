@@ -21,6 +21,9 @@ export default function RootLayout() {
           <Stack.Screen name="feed" options={{ title: "댕냥마을" }} />
           <Stack.Screen name="map" options={{ title: "동네 지도" }} />
           <Stack.Screen name="place/[id]" options={{ title: "장소" }} />
+          <Stack.Screen name="market" options={{ title: "중고거래" }} />
+          <Stack.Screen name="item/[id]" options={{ title: "상품" }} />
+          <Stack.Screen name="sell" options={{ title: "상품 등록", presentation: "modal" }} />
           <Stack.Screen name="new" options={{ title: "글쓰기", presentation: "modal" }} />
           <Stack.Screen name="post/[id]" options={{ title: "게시글" }} />
           <Stack.Screen name="login" options={{ title: "로그인" }} />

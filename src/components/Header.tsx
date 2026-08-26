@@ -24,6 +24,9 @@ export function Header() {
           <Link href="/map" className="btn btn-sm">
             🗺️ 지도
           </Link>
+          <Link href="/items" className="btn btn-sm">
+            🛒 중고거래
+          </Link>
           {loading ? null : user ? (
             <>
               <span className="header-user">{user.username}님</span>

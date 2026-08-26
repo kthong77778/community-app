@@ -11,6 +11,7 @@ import {
 import { WebView } from "react-native-webview";
 import { apiRequest } from "@/api/client";
 import type { PlaceView } from "@/api/types";
+import { BottomNav } from "@/components/BottomNav";
 import { colors, PLACE_TYPES, placeType, radius } from "@/theme";
 
 const TABS: { key: string | null; label: string }[] = [
@@ -113,7 +114,7 @@ export default function MapScreen() {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContent}>
+      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
         <Text style={styles.sectionLabel}>장소 목록</Text>
         {loading && places.length === 0 ? (
           <ActivityIndicator style={{ marginTop: 20 }} color={colors.primary} />
@@ -153,12 +154,15 @@ export default function MapScreen() {
           })
         )}
       </ScrollView>
+
+      <BottomNav active="map" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  list: { flex: 1 },
   filterBar: { flexDirection: "row", gap: 7, paddingHorizontal: 12, paddingVertical: 10 },
   pill: {
     paddingHorizontal: 13,

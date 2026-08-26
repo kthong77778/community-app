@@ -30,7 +30,7 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "DELETE";
+  method?: "GET" | "POST" | "DELETE" | "PATCH";
   body?: unknown;
 }
 
