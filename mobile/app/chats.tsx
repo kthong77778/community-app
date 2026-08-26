@@ -39,9 +39,14 @@ export default function ChatsScreen() {
     }
   }, [user]);
 
+  // 화면 포커스 동안 5초마다 목록/뱃지를 재조회. 화면을 벗어나면 정지.
   useFocusEffect(
     useCallback(() => {
       void load();
+      const timer = setInterval(() => {
+        void load();
+      }, 5000);
+      return () => clearInterval(timer);
     }, [load]),
   );
 
@@ -94,34 +99,52 @@ export default function ChatsScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <Pressable
-              style={styles.row}
-              onPress={() => router.push(`/chat/${item.id}`)}
-            >
-              {item.itemImageUrl ? (
-                <Image source={{ uri: item.itemImageUrl }} style={styles.thumb} />
-              ) : (
-                <View style={[styles.thumb, styles.thumbEmoji]}>
-                  <Text style={{ fontSize: 26 }}>📦</Text>
-                </View>
-              )}
-              <View style={styles.rowBody}>
-                <View style={styles.rowTop}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {item.otherUserId}
+          renderItem={({ item }) => {
+            const unread = item.unreadCount > 0;
+            return (
+              <Pressable
+                style={styles.row}
+                onPress={() => router.push(`/chat/${item.id}`)}
+              >
+                {item.itemImageUrl ? (
+                  <Image source={{ uri: item.itemImageUrl }} style={styles.thumb} />
+                ) : (
+                  <View style={[styles.thumb, styles.thumbEmoji]}>
+                    <Text style={{ fontSize: 26 }}>📦</Text>
+                  </View>
+                )}
+                <View style={styles.rowBody}>
+                  <View style={styles.rowTop}>
+                    <Text
+                      style={[styles.name, unread && styles.nameUnread]}
+                      numberOfLines={1}
+                    >
+                      {item.otherUserId}
+                    </Text>
+                    <Text style={styles.time}>{timeAgo(item.lastMessageAt)}</Text>
+                  </View>
+                  <Text style={styles.itemTitle} numberOfLines={1}>
+                    {item.itemTitle ?? "삭제된 상품"}
                   </Text>
-                  <Text style={styles.time}>{timeAgo(item.lastMessageAt)}</Text>
+                  <View style={styles.previewRow}>
+                    <Text
+                      style={[styles.preview, unread && styles.previewUnread]}
+                      numberOfLines={1}
+                    >
+                      {item.lastMessageText ?? "대화를 시작해보세요"}
+                    </Text>
+                    {unread && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {item.unreadCount > 99 ? "99+" : item.unreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-                <Text style={styles.itemTitle} numberOfLines={1}>
-                  {item.itemTitle ?? "삭제된 상품"}
-                </Text>
-                <Text style={styles.preview} numberOfLines={1}>
-                  {item.lastMessageText ?? "대화를 시작해보세요"}
-                </Text>
-              </View>
-            </Pressable>
-          )}
+              </Pressable>
+            );
+          }}
         />
       )}
 
@@ -156,9 +179,22 @@ const styles = StyleSheet.create({
   rowBody: { flex: 1, justifyContent: "center", gap: 2 },
   rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   name: { flex: 1, fontSize: 15, fontWeight: "700", color: colors.text },
+  nameUnread: { fontWeight: "800" },
   time: { fontSize: 12, color: colors.textMuted },
   itemTitle: { fontSize: 13, color: colors.textMuted },
-  preview: { fontSize: 14, color: colors.text },
+  previewRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  preview: { flex: 1, fontSize: 14, color: colors.text },
+  previewUnread: { fontWeight: "700", color: colors.text },
+  badge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { color: colors.primaryText, fontSize: 11, fontWeight: "800" },
   empty: { alignItems: "center", paddingVertical: 60, width: "100%" },
   emptyBig: { fontSize: 40, marginBottom: 10 },
   emptyText: { color: colors.textMuted, fontSize: 15, textAlign: "center" },

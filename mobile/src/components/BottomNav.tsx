@@ -1,5 +1,8 @@
 import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { apiRequest } from "@/api/client";
+import { useAuth } from "@/auth/AuthContext";
 import { colors } from "@/theme";
 
 const TABS = [
@@ -18,10 +21,41 @@ export function BottomNav({
   active: "feed" | "map" | "market" | "chats" | "shop";
 }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const [unread, setUnread] = useState(0);
+
+  // 로그인 상태에서 총 안 읽음 개수를 마운트 시 + 8초마다 폴링. 실패는 조용히 무시.
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    let alive = true;
+    const poll = async () => {
+      try {
+        const data = await apiRequest<{ count: number }>(
+          "/api/conversations/unread-count",
+        );
+        if (alive) setUnread(data.count);
+      } catch {
+        // 기존 UI 유지
+      }
+    };
+    void poll();
+    const timer = setInterval(() => {
+      void poll();
+    }, 8000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [user]);
+
   return (
     <View style={styles.bar}>
       {TABS.map((t) => {
         const on = t.key === active;
+        const showBadge = t.key === "chats" && !!user && unread > 0;
         return (
           <Pressable
             key={t.key}
@@ -30,9 +64,18 @@ export function BottomNav({
               if (!on) router.replace(t.to);
             }}
           >
-            <Text style={[styles.icon, on ? styles.iconOn : styles.iconOff]}>
-              {t.icon}
-            </Text>
+            <View style={styles.iconWrap}>
+              <Text style={[styles.icon, on ? styles.iconOn : styles.iconOff]}>
+                {t.icon}
+              </Text>
+              {showBadge && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unread > 99 ? "99+" : unread}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text
               style={[styles.label, on && styles.labelOn]}
               numberOfLines={1}
@@ -54,6 +97,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   tab: { flex: 1, alignItems: "center", paddingTop: 9, paddingBottom: 10, paddingHorizontal: 1, gap: 2 },
+  iconWrap: { position: "relative" },
+  badge: {
+    position: "absolute",
+    top: -5,
+    right: -12,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: colors.primary,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { color: colors.primaryText, fontSize: 9, fontWeight: "800", lineHeight: 12 },
   icon: { fontSize: 19, lineHeight: 21 },
   iconOn: {},
   iconOff: { opacity: 0.85 },

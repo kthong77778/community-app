@@ -133,4 +133,5 @@ export interface ConversationView extends Conversation {
   itemPrice: number | null;
   itemStatus: string | null;
   lastMessageText: string | null;
+  unreadCount: number; // 현재 사용자가 아직 안 읽은 메시지 수
 }

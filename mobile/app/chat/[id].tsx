@@ -47,9 +47,15 @@ export default function ChatThreadScreen() {
     }
   }, [id]);
 
+  // 화면 포커스 동안 3.5초마다 재조회해 새 메시지를 반영(서버가 조회 시 읽음 처리).
+  // 화면을 벗어나면 정지.
   useFocusEffect(
     useCallback(() => {
       void load();
+      const timer = setInterval(() => {
+        void load();
+      }, 3500);
+      return () => clearInterval(timer);
     }, [load]),
   );
 
