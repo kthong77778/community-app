@@ -69,10 +69,18 @@ export interface Place {
   createdAt: string;
 }
 
-// A place enriched with its review aggregates.
+// A place enriched with its review aggregates and, for the current viewer,
+// favorite (찜/즐겨찾기) aggregates. Computed in SQL.
 export interface PlaceView extends Place {
   reviewCount: number;
   avgRating: number; // 0 when no reviews
+  favoriteCount: number;
+  favoritedByMe: boolean;
+}
+
+// Result of toggling a place favorite.
+export interface PlaceFavoriteState {
+  favorited: boolean;
 }
 
 export interface Review {

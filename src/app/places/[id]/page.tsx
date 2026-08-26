@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { timeAgo } from "@/lib/format";
@@ -16,6 +16,7 @@ function starStr(n: number): string {
 
 export default function PlaceDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { user } = useAuth();
 
   const [place, setPlace] = useState<PlaceView | null>(null);
@@ -25,6 +26,7 @@ export default function PlaceDetailPage() {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [favBusy, setFavBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/places/${id}`, { cache: "no-store" });
@@ -41,6 +43,37 @@ export default function PlaceDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function toggleFavorite() {
+    if (!user) {
+      router.push(`/login?next=/places/${id}`);
+      return;
+    }
+    if (favBusy || !place) return;
+    setFavBusy(true);
+    // Optimistic update; revert on failure.
+    const prev = place;
+    setPlace({
+      ...place,
+      favoritedByMe: !place.favoritedByMe,
+      favoriteCount: place.favoriteCount + (place.favoritedByMe ? -1 : 1),
+    });
+    try {
+      const res = await fetch(`/api/places/${id}/favorite`, { method: "POST" });
+      if (!res.ok) {
+        setPlace(prev);
+      } else {
+        const data = (await res.json()) as { favorited: boolean };
+        setPlace((cur) =>
+          cur ? { ...cur, favoritedByMe: data.favorited } : cur,
+        );
+      }
+    } catch {
+      setPlace(prev);
+    } finally {
+      setFavBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -95,10 +128,31 @@ export default function PlaceDetailPage() {
         >
           {ti.emoji}
         </div>
-        <div style={{ marginBottom: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
           <span className="badge" style={{ background: `${ti.color}22`, color: ti.color }}>
             {ti.emoji} {place.type}
           </span>
+          <button
+            type="button"
+            className={`fav-btn ${place.favoritedByMe ? "on" : ""}`}
+            style={{ marginLeft: "auto" }}
+            onClick={toggleFavorite}
+            disabled={favBusy}
+            aria-pressed={place.favoritedByMe}
+            title={place.favoritedByMe ? "찜 취소" : "찜하기"}
+          >
+            <span className="fav-heart">{place.favoritedByMe ? "♥" : "♡"}</span>
+            {place.favoriteCount > 0 && (
+              <span className="fav-count">{place.favoriteCount}</span>
+            )}
+          </button>
         </div>
         <h1>{place.name}</h1>
         <p className="place-addr">📍 {place.address}</p>

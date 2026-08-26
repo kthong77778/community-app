@@ -5,6 +5,7 @@ import type {
   ItemView,
   LikeState,
   Place,
+  PlaceFavoriteState,
   PlaceView,
   Post,
   PostPage,
@@ -73,9 +74,14 @@ export interface Store {
   deleteComment(id: string): Promise<boolean>;
 
   // ----- Places (map) -----
-  // Lists places (optionally filtered by type) with review aggregates.
-  listPlaces(type?: string | null): Promise<PlaceView[]>;
-  getPlace(id: string): Promise<PlaceView | null>;
+  // Lists places (optionally filtered by type) with review + favorite
+  // aggregates. Pass `currentUserId` so `favoritedByMe` reflects that viewer's
+  // 찜 state (null → always false).
+  listPlaces(
+    type?: string | null,
+    currentUserId?: string | null,
+  ): Promise<PlaceView[]>;
+  getPlace(id: string, currentUserId?: string | null): Promise<PlaceView | null>;
   createPlace(data: {
     name: string;
     type: string;
@@ -83,6 +89,15 @@ export interface Store {
     lat: number;
     lng: number;
   }): Promise<PlaceView>;
+
+  // Toggles the user's 찜(favorite/즐겨찾기) for a place; returns the new state,
+  // or null if the place does not exist. Runs in a transaction.
+  togglePlaceFavorite(
+    userId: string,
+    placeId: string,
+  ): Promise<PlaceFavoriteState | null>;
+  // Lists the places the user has favorited, most-recently-favorited first.
+  listFavoritePlaces(userId: string): Promise<PlaceView[]>;
 
   // ----- Reviews -----
   addReview(data: {

@@ -47,6 +47,10 @@ export interface PlaceView {
   reviewCount: number;
   avgRating: number;
   createdAt: string;
+  // Favorite (찜/즐겨찾기) aggregates for the current viewer. Optional so
+  // responses without a viewer still type-check.
+  favoriteCount?: number;
+  favoritedByMe?: boolean;
 }
 
 export interface Review {

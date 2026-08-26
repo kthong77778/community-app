@@ -503,3 +503,4 @@ main {
 .fav-btn.on { border-color: #f2b8c6; background: #fff1f2; color: #e11d48; }
 .fav-btn .fav-heart { font-size: 15px; line-height: 1; }
 .fav-btn .fav-count { font-size: 13px; }
+.fav-inline { color: #e11d48; font-size: 13px; }

@@ -37,6 +37,7 @@ export default function PlaceDetailScreen() {
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [favBusy, setFavBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +57,34 @@ export default function PlaceDetailScreen() {
       void load();
     }, [load]),
   );
+
+  async function toggleFavorite() {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (favBusy || !place) return;
+    setFavBusy(true);
+    const prev = place;
+    const nextFav = !place.favoritedByMe;
+    setPlace({
+      ...place,
+      favoritedByMe: nextFav,
+      favoriteCount: (place.favoriteCount ?? 0) + (nextFav ? 1 : -1),
+    });
+    try {
+      const data = await apiRequest<{ favorited: boolean }>(
+        `/api/places/${id}/favorite`,
+        { method: "POST" },
+      );
+      setPlace((cur) => (cur ? { ...cur, favoritedByMe: data.favorited } : cur));
+    } catch (err) {
+      setPlace(prev);
+      Alert.alert("오류", err instanceof ApiError ? err.message : "찜 처리 실패");
+    } finally {
+      setFavBusy(false);
+    }
+  }
 
   async function submit() {
     if (!text.trim()) return;
@@ -120,9 +149,26 @@ export default function PlaceDetailScreen() {
           ) : (
             <Text style={styles.muted}>아직 리뷰가 없어요</Text>
           )}
-          <Pressable style={styles.dirBtn} onPress={() => setSheet(true)}>
-            <Text style={styles.dirBtnText}>🧭 길찾기</Text>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable style={styles.dirBtn} onPress={() => setSheet(true)}>
+              <Text style={styles.dirBtnText}>🧭 길찾기</Text>
+            </Pressable>
+            <Pressable
+              onPress={toggleFavorite}
+              disabled={favBusy}
+              hitSlop={6}
+              style={[styles.favBtn, place.favoritedByMe && styles.favBtnOn]}
+            >
+              <Text style={[styles.favHeart, place.favoritedByMe && styles.favOnText]}>
+                {place.favoritedByMe ? "♥" : "♡"}
+              </Text>
+              {(place.favoriteCount ?? 0) > 0 && (
+                <Text style={[styles.favCount, place.favoritedByMe && styles.favOnText]}>
+                  {place.favoriteCount}
+                </Text>
+              )}
+            </Pressable>
+          </View>
         </View>
 
         {user ? (
@@ -230,9 +276,8 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   ratingNum: { fontSize: 22, fontWeight: "800", color: colors.text },
   ratingStars: { color: "#f59e0b", fontSize: 15, letterSpacing: 1 },
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 },
   dirBtn: {
-    alignSelf: "flex-start",
-    marginTop: 14,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,
@@ -241,6 +286,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   dirBtnText: { fontWeight: "700", fontSize: 14, color: colors.text },
+  favBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    backgroundColor: colors.surface,
+  },
+  favBtnOn: { borderColor: colors.like, backgroundColor: colors.likeBg },
+  favHeart: { fontSize: 16, fontWeight: "700", color: colors.textMuted },
+  favCount: { fontSize: 13, fontWeight: "700", color: colors.textMuted },
+  favOnText: { color: colors.like },
   sectionLabel: {
     fontSize: 13,
     fontWeight: "700",

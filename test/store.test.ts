@@ -213,6 +213,71 @@ describe("places + reviews", () => {
     assert.equal(await store.deleteReview(r.id), true);
     assert.equal(await store.getReviewById(r.id), null);
   });
+
+  it("reports place favorite aggregates per viewer", async () => {
+    const fan = await makeUser("fan");
+    const [place] = await store.listPlaces();
+
+    // No favorites yet, and no viewer context.
+    const fresh = await store.getPlace(place.id);
+    assert.equal(fresh?.favoriteCount, 0);
+    assert.equal(fresh?.favoritedByMe, false);
+
+    const state = await store.togglePlaceFavorite(fan.id, place.id);
+    assert.deepEqual(state, { favorited: true });
+
+    // The fan sees favoritedByMe; another viewer sees the count only.
+    const asFan = await store.getPlace(place.id, fan.id);
+    assert.equal(asFan?.favoriteCount, 1);
+    assert.equal(asFan?.favoritedByMe, true);
+
+    const asOther = await store.getPlace(place.id, "someone-else");
+    assert.equal(asOther?.favoriteCount, 1);
+    assert.equal(asOther?.favoritedByMe, false);
+
+    // listPlaces carries the viewer's favorite flag too.
+    const listed = await store.listPlaces(null, fan.id);
+    const seen = listed.find((p) => p.id === place.id);
+    assert.equal(seen?.favoritedByMe, true);
+    assert.equal(seen?.favoriteCount, 1);
+  });
+
+  it("toggles a place favorite off and prevents duplicates", async () => {
+    const fan = await makeUser("fan");
+    const [place] = await store.listPlaces();
+
+    const on = await store.togglePlaceFavorite(fan.id, place.id);
+    assert.deepEqual(on, { favorited: true });
+    const off = await store.togglePlaceFavorite(fan.id, place.id);
+    assert.deepEqual(off, { favorited: false });
+
+    const view = await store.getPlace(place.id, fan.id);
+    assert.equal(view?.favoriteCount, 0);
+    assert.equal(view?.favoritedByMe, false);
+  });
+
+  it("returns null when favoriting a missing place", async () => {
+    const fan = await makeUser("fan");
+    assert.equal(await store.togglePlaceFavorite(fan.id, "missing"), null);
+  });
+
+  it("lists favorite places most-recently-favorited first", async () => {
+    const fan = await makeUser("fan");
+    const places = await store.listPlaces();
+    const [a, b] = places;
+
+    await store.togglePlaceFavorite(fan.id, a.id);
+    await store.togglePlaceFavorite(fan.id, b.id);
+
+    const favs = await store.listFavoritePlaces(fan.id);
+    assert.equal(favs.length, 2);
+    assert.equal(favs[0].id, b.id); // newest favorite first
+    assert.ok(favs.every((p) => p.favoritedByMe === true));
+
+    // Another user's favorites are independent.
+    const other = await makeUser("other");
+    assert.equal((await store.listFavoritePlaces(other.id)).length, 0);
+  });
 });
 
 describe("marketplace items", () => {

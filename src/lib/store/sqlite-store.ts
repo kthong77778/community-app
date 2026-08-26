@@ -10,6 +10,7 @@ import type {
   ItemView,
   LikeState,
   Place,
+  PlaceFavoriteState,
   PlaceView,
   Post,
   PostPage,
@@ -119,6 +120,15 @@ export class SqliteStore implements Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_reviews_place ON reviews(place_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS place_favorites (
+        user_id TEXT NOT NULL,
+        place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, place_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_place_favorites_user ON place_favorites(user_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_place_favorites_place ON place_favorites(place_id);
 
       CREATE TABLE IF NOT EXISTS items (
         id TEXT PRIMARY KEY,
@@ -438,19 +448,75 @@ export class SqliteStore implements Store {
   }
 
   // ----- Places -----
-  async listPlaces(type?: string | null): Promise<PlaceView[]> {
+  async listPlaces(
+    type?: string | null,
+    currentUserId?: string | null,
+  ): Promise<PlaceView[]> {
     const where = type ? `WHERE p.type = ?` : ``;
+    // The favorited_by_me subquery param comes first (see PLACE_VIEW_SELECT).
+    const params: (string | number)[] = [currentUserId ?? ""];
+    if (type) params.push(type);
     const rows = this.db
       .prepare(`${PLACE_VIEW_SELECT} ${where} ORDER BY p.rowid ASC`)
-      .all(...(type ? [type] : [])) as PlaceViewRow[];
+      .all(...params) as PlaceViewRow[];
     return rows.map(mapPlaceView);
   }
 
-  async getPlace(id: string): Promise<PlaceView | null> {
+  async getPlace(
+    id: string,
+    currentUserId?: string | null,
+  ): Promise<PlaceView | null> {
     const row = this.db
       .prepare(`${PLACE_VIEW_SELECT} WHERE p.id = ?`)
-      .get(id) as PlaceViewRow | undefined;
+      .get(currentUserId ?? "", id) as PlaceViewRow | undefined;
     return row ? mapPlaceView(row) : null;
+  }
+
+  async togglePlaceFavorite(
+    userId: string,
+    placeId: string,
+  ): Promise<PlaceFavoriteState | null> {
+    const toggle = this.db.transaction((): PlaceFavoriteState | null => {
+      const exists = this.db
+        .prepare(`SELECT 1 FROM places WHERE id = ?`)
+        .get(placeId);
+      if (!exists) return null;
+
+      const favorited = this.db
+        .prepare(
+          `SELECT 1 FROM place_favorites WHERE user_id = ? AND place_id = ?`,
+        )
+        .get(userId, placeId);
+
+      if (favorited) {
+        this.db
+          .prepare(
+            `DELETE FROM place_favorites WHERE user_id = ? AND place_id = ?`,
+          )
+          .run(userId, placeId);
+        return { favorited: false };
+      }
+      this.db
+        .prepare(
+          `INSERT INTO place_favorites (user_id, place_id, created_at) VALUES (?, ?, ?)`,
+        )
+        .run(userId, placeId, new Date().toISOString());
+      return { favorited: true };
+    });
+    return toggle();
+  }
+
+  async listFavoritePlaces(userId: string): Promise<PlaceView[]> {
+    // Join against the favorites the user owns and order by when they were
+    // favorited (newest first). rowid breaks same-millisecond ties.
+    const rows = this.db
+      .prepare(
+        `${PLACE_VIEW_SELECT}
+         JOIN place_favorites fav ON fav.place_id = p.id AND fav.user_id = ?
+         ORDER BY fav.created_at DESC, p.rowid DESC`,
+      )
+      .all(userId, userId) as PlaceViewRow[];
+    return rows.map(mapPlaceView);
   }
 
   async createPlace(data: {
@@ -771,6 +837,8 @@ interface PlaceRow {
 interface PlaceViewRow extends PlaceRow {
   review_count: number;
   avg_rating: number | null;
+  favorite_count: number;
+  favorited_by_me: number;
 }
 interface ReviewRow {
   id: string;
@@ -782,10 +850,14 @@ interface ReviewRow {
   created_at: string;
 }
 
+// Place select enriched with review + favorite aggregates. The first `?` binds
+// the current viewer id for favorited_by_me; add WHERE/JOIN clauses after it.
 const PLACE_VIEW_SELECT = `
   SELECT p.*,
     (SELECT COUNT(*) FROM reviews r WHERE r.place_id = p.id) AS review_count,
-    (SELECT AVG(r.rating) FROM reviews r WHERE r.place_id = p.id) AS avg_rating
+    (SELECT AVG(r.rating) FROM reviews r WHERE r.place_id = p.id) AS avg_rating,
+    (SELECT COUNT(*) FROM place_favorites f WHERE f.place_id = p.id) AS favorite_count,
+    EXISTS(SELECT 1 FROM place_favorites f2 WHERE f2.place_id = p.id AND f2.user_id = ?) AS favorited_by_me
   FROM places p`;
 
 function mapPlaceView(r: PlaceViewRow): PlaceView {
@@ -799,6 +871,8 @@ function mapPlaceView(r: PlaceViewRow): PlaceView {
     createdAt: r.created_at,
     reviewCount: r.review_count,
     avgRating: r.avg_rating ? Math.round(r.avg_rating * 10) / 10 : 0,
+    favoriteCount: r.favorite_count,
+    favoritedByMe: r.favorited_by_me === 1,
   };
 }
 

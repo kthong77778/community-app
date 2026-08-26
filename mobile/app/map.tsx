@@ -14,9 +14,11 @@ import type { PlaceView } from "@/api/types";
 import { BottomNav } from "@/components/BottomNav";
 import { colors, PLACE_TYPES, placeType, radius } from "@/theme";
 
+const FAV_KEY = "__fav__";
 const TABS: { key: string | null; label: string }[] = [
   { key: null, label: "전체" },
   ...PLACE_TYPES.map((t) => ({ key: t.key as string, label: t.key })),
+  { key: FAV_KEY, label: "♥ 찜" },
 ];
 
 // Builds a self-contained Leaflet + OpenStreetMap page (no API key needed).
@@ -60,7 +62,12 @@ export default function MapScreen() {
 
   const load = useCallback(async () => {
     try {
-      const q = activeType ? `?type=${encodeURIComponent(activeType)}` : "";
+      const q =
+        activeType === FAV_KEY
+          ? "?favorited=1"
+          : activeType
+            ? `?type=${encodeURIComponent(activeType)}`
+            : "";
       const data = await apiRequest<{ places: PlaceView[] }>(`/api/places${q}`);
       setPlaces(data.places);
     } catch {
@@ -118,6 +125,12 @@ export default function MapScreen() {
         <Text style={styles.sectionLabel}>장소 목록</Text>
         {loading && places.length === 0 ? (
           <ActivityIndicator style={{ marginTop: 20 }} color={colors.primary} />
+        ) : places.length === 0 ? (
+          <Text style={styles.mutedPad}>
+            {activeType === FAV_KEY
+              ? "아직 찜한 곳이 없어요. 마음에 드는 장소에서 ♥를 눌러보세요!"
+              : "장소가 없어요."}
+          </Text>
         ) : (
           places.map((p) => {
             const ti = placeType(p.type);
@@ -133,6 +146,9 @@ export default function MapScreen() {
                 <View style={styles.rowMain}>
                   <Text style={styles.rowName} numberOfLines={1}>
                     {p.name}
+                    {p.favoritedByMe ? (
+                      <Text style={styles.favMark}> ♥</Text>
+                    ) : null}
                   </Text>
                   <Text style={styles.rowSub} numberOfLines={1}>
                     {p.type} · {p.address}
@@ -211,4 +227,6 @@ const styles = StyleSheet.create({
   rowRate: { fontSize: 13, color: colors.text },
   rateNum: { fontSize: 15, fontWeight: "800", color: colors.text },
   star: { color: "#f59e0b" },
+  favMark: { color: colors.like },
+  mutedPad: { color: colors.textMuted, fontSize: 14, paddingVertical: 16 },
 });
