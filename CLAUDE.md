@@ -17,6 +17,7 @@
 
 모든 영속 로직은 `src/lib/store/Store.ts`의 **`Store` 인터페이스** 뒤에 있다.
 - 구현체: `src/lib/store/sqlite-store.ts` (better-sqlite3, 트랜잭션, `data/community.db`)
+  · `src/lib/store/postgres-store.ts` (pg, 배포용). `getStore()`가 `DATABASE_URL` 있으면 Postgres, 없으면 SQLite 선택
 - 접근: 라우트/페이지는 오직 `getStore()`(`src/lib/store/index.ts`)만 사용
 - 새 데이터 기능 추가 순서: ① `types.ts`에 도메인 타입 → ② `Store.ts`에 메서드 시그니처
   → ③ `sqlite-store.ts`에 테이블(migrate) + 메서드 + row 매퍼 → ④ `test/store.test.ts`에
@@ -78,6 +79,10 @@
 - 모바일: `mobile/app/chats.tsx`, `mobile/app/chat/[id].tsx`, 하단탭 "채팅"
 - 로그인 필요. 상품상세 "채팅하기"가 진입점(get-or-create 후 스레드로 이동).
 
+### 프로필 / 이미지 업로드
+- 프로필: 회원가입 없음(하드코딩 로그인 유지) — 사용자 활동 집계 뷰. `listPostsByAuthor`·`listItemsBySeller` Store, `GET /api/users/[id]`(글·판매상품). 웹 `src/app/users/[id]/page.tsx`(본인이면 찜·채팅 바로가기+로그아웃), 모바일 `mobile/app/user/[id].tsx`. 헤더/상세의 작성자·판매자 이름이 프로필 링크.
+- 이미지 업로드: `POST /api/upload`(멀티파트→`UPLOAD_DIR`(기본 public/uploads), 이미지·5MB 검증). 웹 판매등록 파일선택, 모바일 `expo-image-picker`+`uploadImage()`/`imageUri()`(상대경로→절대 URL). 서버리스는 오브젝트 스토리지 필요(DEPLOY.md).
+
 ### 공통 네비/인프라
 - 모바일 하단탭: `mobile/src/components/BottomNav.tsx`(커뮤니티/지도/중고거래, `replace`), 화면 등록: `mobile/app/_layout.tsx`
 - 모바일 API/인증: `mobile/src/api/client.ts`(PATCH 포함), `mobile/src/api/types.ts`, `mobile/src/auth/AuthContext.tsx`
@@ -85,6 +90,6 @@
 
 ## 로드맵
 
-커뮤니티 ✅ · 지도 ✅ · 중고거래 ✅ · 쇼핑/물품 비교 ✅. 배포는 마지막 단계
-(영속 디스크 호스트면 SQLite 그대로, 서버리스면 PostgresStore로 교체).
+커뮤니티 ✅ · 지도 ✅ · 중고거래 ✅ · 쇼핑/물품 비교 ✅ · 채팅 ✅ · 프로필/이미지업로드 ✅.
+배포: SQLite(영속 디스크) 또는 PostgresStore(`DATABASE_URL`) 선택 구현됨 — 세부는 `DEPLOY.md`.
 - 찜(favorite): 중고거래 상품 ✅ · 지도 장소 ✅ (`item_favorites`/`place_favorites`, 토글 API + 목록 필터)
