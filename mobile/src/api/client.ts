@@ -76,3 +76,48 @@ export async function apiRequest<T>(
   }
   return data as T;
 }
+
+// Upload a local image (a device file:// URI from the image picker) to the
+// backend via multipart/form-data. `apiRequest` is JSON-only, so uploads need
+// their own path — but they still reuse the module-scope bearer token.
+export async function uploadImage(uri: string): Promise<{ url: string }> {
+  const form = new FormData();
+  // RN FormData 파일 형식
+  const name = uri.split("/").pop() || "photo.jpg";
+  const ext = (name.split(".").pop() || "jpg").toLowerCase();
+  const mime =
+    ext === "png"
+      ? "image/png"
+      : ext === "webp"
+        ? "image/webp"
+        : ext === "gif"
+          ? "image/gif"
+          : "image/jpeg";
+  // @ts-expect-error RN FormData의 파일 객체
+  form.append("file", { uri, name, type: mime });
+  const headers: Record<string, string> = {};
+  if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+  } catch {
+    throw new ApiError(0, "서버에 연결할 수 없습니다. 네트워크를 확인해 주세요.");
+  }
+  const text = await res.text();
+  const data = text ? (JSON.parse(text) as unknown) : {};
+  if (!res.ok) {
+    throw new ApiError(res.status, (data as { error?: string }).error ?? "업로드 실패");
+  }
+  return data as { url: string };
+}
+
+// The backend returns server-relative image paths (e.g. "/uploads/ab12.jpg").
+// RN <Image> needs an absolute URL, so prefix relative paths with the API host.
+// Absolute URLs (http(s)://) and empty strings pass through unchanged.
+export function imageUri(url: string): string {
+  return url && url.startsWith("/") ? `${API_BASE_URL}${url}` : url;
+}

@@ -110,7 +110,14 @@ export default function FeedScreen() {
           headerRight: () =>
             user ? (
               <View style={styles.headerRight}>
-                <Text style={styles.headerUser}>{user.username}님</Text>
+                <Pressable
+                  onPress={() => router.push(`/user/${user.id}`)}
+                  hitSlop={8}
+                  style={styles.profileBtn}
+                >
+                  <Text style={styles.profileIcon}>👤</Text>
+                  <Text style={styles.headerUser}>{user.username}님</Text>
+                </Pressable>
                 <Pressable onPress={logout} hitSlop={8}>
                   <Text style={styles.headerLink}>로그아웃</Text>
                 </Pressable>
@@ -214,6 +221,8 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   listContent: { padding: 12, paddingBottom: 96 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 12 },
+  profileBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  profileIcon: { fontSize: 15 },
   headerUser: { color: colors.textMuted, fontSize: 14 },
   headerLink: { color: colors.primary, fontSize: 14, fontWeight: "600" },
   filterBar: {

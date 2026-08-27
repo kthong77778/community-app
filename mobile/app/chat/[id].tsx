@@ -13,7 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { ApiError, apiRequest } from "@/api/client";
+import { ApiError, apiRequest, imageUri } from "@/api/client";
 import type { ConversationView, Message } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
@@ -114,7 +114,7 @@ export default function ChatThreadScreen() {
           }}
         >
           {conversation.itemImageUrl ? (
-            <Image source={{ uri: conversation.itemImageUrl }} style={styles.bannerThumb} />
+            <Image source={{ uri: imageUri(conversation.itemImageUrl) }} style={styles.bannerThumb} />
           ) : (
             <View style={[styles.bannerThumb, styles.bannerEmoji]}>
               <Text style={{ fontSize: 22 }}>📦</Text>

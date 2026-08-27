@@ -10,7 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { ApiError, apiRequest } from "@/api/client";
+import { ApiError, apiRequest, imageUri } from "@/api/client";
 import type { Conversation, Item } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
@@ -145,7 +145,7 @@ export default function ItemDetailScreen() {
       <Stack.Screen options={{ title: item.title }} />
       <ScrollView contentContainerStyle={styles.scroll}>
         {item.imageUrl ? (
-          <Image source={{ uri: item.imageUrl }} style={styles.hero} />
+          <Image source={{ uri: imageUri(item.imageUrl) }} style={styles.hero} />
         ) : (
           <View style={[styles.hero, styles.heroEmoji]}>
             <Text style={{ fontSize: 76 }}>{itemEmoji(item.category)}</Text>
@@ -187,7 +187,14 @@ export default function ItemDetailScreen() {
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.price}>{won(item.price)}</Text>
           <Text style={styles.meta}>
-            {item.sellerName} · {item.location} · {timeAgo(item.createdAt)}
+            <Text
+              style={styles.sellerLink}
+              onPress={() => router.push(`/user/${item.sellerId}`)}
+            >
+              {item.sellerName}
+            </Text>
+            {" · "}
+            {item.location} · {timeAgo(item.createdAt)}
           </Text>
 
           {isSeller && (
@@ -265,6 +272,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "800", color: colors.text, letterSpacing: -0.2 },
   price: { fontSize: 24, fontWeight: "800", color: colors.text, marginTop: 4 },
   meta: { fontSize: 13, color: colors.textMuted, marginTop: 8, marginBottom: 4 },
+  sellerLink: { color: colors.primaryStrong, fontWeight: "700" },
   statusCtl: { flexDirection: "row", gap: 8, marginTop: 14 },
   stOpt: {
     flex: 1,

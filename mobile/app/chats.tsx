@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { apiRequest } from "@/api/client";
+import { apiRequest, imageUri } from "@/api/client";
 import type { ConversationView } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { BottomNav } from "@/components/BottomNav";
@@ -107,7 +107,7 @@ export default function ChatsScreen() {
                 onPress={() => router.push(`/chat/${item.id}`)}
               >
                 {item.itemImageUrl ? (
-                  <Image source={{ uri: item.itemImageUrl }} style={styles.thumb} />
+                  <Image source={{ uri: imageUri(item.itemImageUrl) }} style={styles.thumb} />
                 ) : (
                   <View style={[styles.thumb, styles.thumbEmoji]}>
                     <Text style={{ fontSize: 26 }}>📦</Text>

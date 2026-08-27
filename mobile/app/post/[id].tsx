@@ -179,7 +179,12 @@ export default function PostDetailScreen() {
           </View>
           <Text style={styles.title}>{post.title}</Text>
           <View style={styles.meta}>
-            <Text style={styles.metaText}>{post.authorName}</Text>
+            <Text
+              style={[styles.metaText, styles.authorLink]}
+              onPress={() => router.push(`/user/${post.authorId}`)}
+            >
+              {post.authorName}
+            </Text>
             <Text style={styles.metaDot}>·</Text>
             <Text style={styles.metaText}>{timeAgo(post.createdAt)}</Text>
           </View>
@@ -284,6 +289,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: 8 },
   meta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   metaText: { fontSize: 13, color: colors.textMuted },
+  authorLink: { color: colors.primaryStrong, fontWeight: "700" },
   metaDot: { fontSize: 13, color: colors.border },
   body: { fontSize: 15, color: colors.text, lineHeight: 23, marginBottom: 18 },
   likeBtn: {

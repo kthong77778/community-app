@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { apiRequest } from "@/api/client";
+import { apiRequest, imageUri } from "@/api/client";
 import type { Item } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { BottomNav } from "@/components/BottomNav";
@@ -67,7 +67,11 @@ export default function MarketScreen() {
         options={{
           title: "중고거래",
           headerRight: () =>
-            user ? null : (
+            user ? (
+              <Pressable onPress={() => router.push(`/user/${user.id}`)} hitSlop={8}>
+                <Text style={styles.headerIcon}>👤</Text>
+              </Pressable>
+            ) : (
               <Link href="/login" style={styles.headerLink}>
                 로그인
               </Link>
@@ -124,7 +128,7 @@ export default function MarketScreen() {
               >
                 <View style={styles.thumbWrap}>
                   {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+                    <Image source={{ uri: imageUri(item.imageUrl) }} style={styles.thumb} />
                   ) : (
                     <View style={[styles.thumb, styles.thumbEmoji]}>
                       <Text style={{ fontSize: 42 }}>{itemEmoji(item.category)}</Text>
@@ -171,6 +175,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   list: { flex: 1 },
   headerLink: { color: colors.primary, fontSize: 14, fontWeight: "600" },
+  headerIcon: { fontSize: 18 },
   filterBar: { flexDirection: "row", flexWrap: "wrap", gap: 7, paddingHorizontal: 12, paddingVertical: 10 },
   pill: {
     paddingHorizontal: 12,
