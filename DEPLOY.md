@@ -3,6 +3,42 @@
 앱의 모든 영속 로직은 `Store` 인터페이스(`src/lib/store/Store.ts`) 뒤에 있고,
 `getStore()`가 환경변수로 구현체를 고른다 — 라우트/화면 코드는 바꿀 필요가 없다.
 
+배포 후 운영 루틴(백업·모니터링·업데이트)은 `OPERATIONS.md` 참고.
+
+## 빠른 배포 (혼자서, 관리형 호스팅)
+
+세 가지 방법. **가장 쉬운 건 Render Blueprint(A) 또는 Railway(B).**
+
+### A. Render (영속 디스크 + SQLite) — `render.yaml` 있음
+1. https://render.com → New → **Blueprint** → 이 저장소 선택
+2. `render.yaml`이 웹 서비스 + `/data` 영속 디스크(1GB) + `AUTH_SECRET` 자동생성까지 구성
+3. 배포되면 `https://<이름>.onrender.com` 접속. 헬스체크는 `/api/health`
+> 영속 디스크는 Render **유료 플랜** 필요. 무료로 하려면 아래 "Postgres로" 참고.
+
+### B. Railway (Dockerfile 자동 사용)
+1. https://railway.app → New Project → Deploy from GitHub → 이 저장소
+2. Variables에 `AUTH_SECRET`(임의의 긴 문자열), `SQLITE_PATH=/data/community.db`,
+   `UPLOAD_DIR=/data/uploads` 추가
+3. Volume을 하나 만들어 `/data`에 마운트 → 재배포에도 데이터 유지
+4. 도메인 생성(Settings → Networking → Generate Domain)
+
+### C. Docker (직접 서버/VM)
+```bash
+docker build -t daengnyang .
+docker run -d --name daengnyang -p 3000:3000 \
+  -e AUTH_SECRET="충분히-긴-랜덤-값" \
+  -e SQLITE_PATH=/data/community.db \
+  -e UPLOAD_DIR=/data/uploads \
+  -v daengnyang-data:/data \
+  daengnyang
+```
+`-v ...:/data` 볼륨이 DB와 업로드 이미지를 영속화한다.
+
+### Postgres로 (서버리스/무료 디스크 없이)
+Neon·Supabase 등에서 무료 Postgres를 만들고 그 연결 문자열을 `DATABASE_URL`로
+넣으면 자동으로 PostgresStore를 쓴다. 이땐 영속 디스크가 없어도 데이터가 남는다.
+(단, 업로드 이미지는 여전히 스토리지 필요 — 아래 "이미지 업로드" 참고.)
+
 ## 데이터베이스 선택 (`getStore()`)
 
 | 조건 | 사용 구현 | 용도 |

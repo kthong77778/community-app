@@ -1,0 +1,30 @@
+# Render Blueprint — 한 번의 배포로 웹 서비스 + 영속 디스크(SQLite) 구성.
+# render.com → New → Blueprint → 이 저장소 선택.
+#
+# 기본은 영속 디스크에 SQLite를 쓴다(디스크는 Render 유료 플랜 필요).
+# Postgres를 쓰려면: 아래 disk 블록을 지우고, Neon/Supabase 등에서 만든
+# 연결 문자열을 DATABASE_URL 환경변수로 넣으면 자동으로 PostgresStore를 쓴다.
+services:
+  - type: web
+    name: daengnyang
+    runtime: docker
+    plan: starter # 영속 디스크에는 유료 플랜 필요. 무료로 하려면 Postgres 사용.
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: AUTH_SECRET
+        generateValue: true # 세션 서명 키를 자동 생성
+      - key: SQLITE_PATH
+        value: /data/community.db
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      # 채팅을 켜려면 아래 주석 해제:
+      # - key: NEXT_PUBLIC_CHAT_ENABLED
+      #   value: "true"
+      # Postgres를 쓰려면 disk를 지우고 아래를 사용:
+      # - key: DATABASE_URL
+      #   sync: false   # 대시보드에서 직접 입력
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
