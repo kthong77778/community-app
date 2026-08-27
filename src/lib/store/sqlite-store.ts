@@ -21,6 +21,9 @@ import type {
   PostView,
   Product,
   ProductView,
+  Report,
+  ReportTargetType,
+  ReportView,
   Review,
   User,
 } from "./types";
@@ -206,10 +209,22 @@ export class SqliteStore implements Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        target_type TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        reporter_id TEXT NOT NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
     `);
 
     // Additive column migrations for databases created before a column existed.
     this.addColumnIfMissing("posts", "category", "TEXT NOT NULL DEFAULT '자랑'");
+    this.addColumnIfMissing("posts", "hidden", "INTEGER NOT NULL DEFAULT 0");
+    this.addColumnIfMissing("items", "hidden", "INTEGER NOT NULL DEFAULT 0");
     this.addColumnIfMissing("conversations", "buyer_read_at", "TEXT");
     this.addColumnIfMissing("conversations", "seller_read_at", "TEXT");
 
@@ -396,7 +411,7 @@ export class SqliteStore implements Store {
         post.createdAt,
         post.updatedAt,
       );
-    return { ...post, likeCount: 0, commentCount: 0, likedByMe: false };
+    return { ...post, likeCount: 0, commentCount: 0, likedByMe: false, hidden: false };
   }
 
   async listPostViews(opts: {
@@ -406,9 +421,14 @@ export class SqliteStore implements Store {
     category?: string | null;
   }): Promise<PostPage> {
     const { limit, offset, currentUserId, category } = opts;
-    const where = category ? `WHERE p.category = ?` : ``;
+    // Hidden posts drop out of public feeds.
+    const clauses = ["p.hidden = 0"];
     const params: (string | number)[] = [currentUserId ?? ""];
-    if (category) params.push(category);
+    if (category) {
+      clauses.push("p.category = ?");
+      params.push(category);
+    }
+    const where = `WHERE ${clauses.join(" AND ")}`;
     params.push(limit + 1, offset);
 
     // Fetch one extra row to determine whether more pages exist.
@@ -435,7 +455,7 @@ export class SqliteStore implements Store {
     const rows = this.db
       .prepare(
         `${POST_VIEW_SELECT}
-         WHERE p.author_id = ?
+         WHERE p.author_id = ? AND p.hidden = 0
          ORDER BY p.created_at DESC, p.rowid DESC`,
       )
       .all(currentUserId ?? "", authorId) as PostViewRow[];
@@ -699,7 +719,8 @@ export class SqliteStore implements Store {
     status?: string | null;
     currentUserId?: string | null;
   }): Promise<ItemView[]> {
-    const clauses: string[] = [];
+    // Hidden listings drop out of public lists.
+    const clauses: string[] = ["i.hidden = 0"];
     // The favorited_by_me subquery param comes first (see ITEM_VIEW_SELECT).
     const params: (string | number)[] = [opts?.currentUserId ?? ""];
     if (opts?.category) {
@@ -725,7 +746,7 @@ export class SqliteStore implements Store {
   ): Promise<ItemView[]> {
     const rows = this.db
       .prepare(
-        `${ITEM_VIEW_SELECT} WHERE i.seller_id = ? ORDER BY i.created_at DESC, i.rowid DESC`,
+        `${ITEM_VIEW_SELECT} WHERE i.seller_id = ? AND i.hidden = 0 ORDER BY i.created_at DESC, i.rowid DESC`,
       )
       .all(currentUserId ?? "", sellerId) as ItemViewRow[];
     return rows.map(mapItemView);
@@ -1100,6 +1121,65 @@ export class SqliteStore implements Store {
     return message;
   }
 
+  // ----- Moderation -----
+  async addReport(data: {
+    targetType: ReportTargetType;
+    targetId: string;
+    reporterId: string;
+    reason: string;
+  }): Promise<Report> {
+    const report: Report = {
+      id: randomUUID(),
+      targetType: data.targetType,
+      targetId: data.targetId,
+      reporterId: data.reporterId,
+      reason: data.reason,
+      createdAt: new Date().toISOString(),
+    };
+    this.db
+      .prepare(
+        `INSERT INTO reports (id, target_type, target_id, reporter_id, reason, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        report.id,
+        report.targetType,
+        report.targetId,
+        report.reporterId,
+        report.reason,
+        report.createdAt,
+      );
+    return report;
+  }
+
+  async listReports(): Promise<ReportView[]> {
+    const rows = this.db
+      .prepare(
+        `SELECT r.*,
+           CASE r.target_type WHEN 'post' THEN p.title WHEN 'item' THEN i.title END AS target_title
+         FROM reports r
+         LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
+         LEFT JOIN items i ON r.target_type = 'item' AND i.id = r.target_id
+         ORDER BY r.created_at DESC, r.rowid DESC`,
+      )
+      .all() as ReportViewRow[];
+    return rows.map(mapReportView);
+  }
+
+  async setPostHidden(id: string, hidden: boolean): Promise<boolean> {
+    const info = this.db
+      .prepare(`UPDATE posts SET hidden = ? WHERE id = ?`)
+      .run(hidden ? 1 : 0, id);
+    return info.changes > 0;
+  }
+
+  async setItemHidden(id: string, hidden: boolean): Promise<boolean> {
+    const info = this.db
+      .prepare(`UPDATE items SET hidden = ? WHERE id = ?`)
+      .run(hidden ? 1 : 0, id);
+    return info.changes > 0;
+  }
+
   // Housekeeping: drop expired sessions. Safe to call periodically.
   deleteExpiredSessions(): void {
     this.db
@@ -1141,6 +1221,7 @@ interface PostViewRow extends PostRow {
   like_count: number;
   comment_count: number;
   liked_by_me: number;
+  hidden: number;
 }
 interface CommentRow {
   id: string;
@@ -1177,6 +1258,7 @@ function mapPostView(r: PostViewRow): PostView {
     likeCount: r.like_count,
     commentCount: r.comment_count,
     likedByMe: r.liked_by_me === 1,
+    hidden: r.hidden === 1,
   };
 }
 
@@ -1272,6 +1354,7 @@ interface ItemRow {
 interface ItemViewRow extends ItemRow {
   favorite_count: number;
   favorited_by_me: number;
+  hidden: number;
 }
 
 // Item select enriched with favorite aggregates. The first `?` binds the
@@ -1304,6 +1387,7 @@ function mapItemView(r: ItemViewRow): ItemView {
     ...mapItem(r),
     favoriteCount: r.favorite_count,
     favoritedByMe: r.favorited_by_me === 1,
+    hidden: r.hidden === 1,
   };
 }
 
@@ -1449,6 +1533,30 @@ function mapMessage(r: MessageRow): Message {
     senderId: r.sender_id,
     text: r.text,
     createdAt: r.created_at,
+  };
+}
+
+interface ReportRow {
+  id: string;
+  target_type: string;
+  target_id: string;
+  reporter_id: string;
+  reason: string;
+  created_at: string;
+}
+interface ReportViewRow extends ReportRow {
+  target_title: string | null;
+}
+
+function mapReportView(r: ReportViewRow): ReportView {
+  return {
+    id: r.id,
+    targetType: r.target_type as ReportTargetType,
+    targetId: r.target_id,
+    reporterId: r.reporter_id,
+    reason: r.reason,
+    createdAt: r.created_at,
+    targetTitle: r.target_title,
   };
 }
 

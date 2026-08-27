@@ -19,6 +19,9 @@ import type {
   PostView,
   Product,
   ProductView,
+  Report,
+  ReportTargetType,
+  ReportView,
   Review,
   User,
 } from "./types";
@@ -73,6 +76,7 @@ export class PostgresStore implements Store {
         category TEXT NOT NULL DEFAULT '자랑',
         author_id TEXT NOT NULL,
         author_name TEXT NOT NULL,
+        hidden INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -138,6 +142,7 @@ export class PostgresStore implements Store {
         location TEXT NOT NULL,
         seller_id TEXT NOT NULL,
         seller_name TEXT NOT NULL,
+        hidden INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
@@ -196,7 +201,26 @@ export class PostgresStore implements Store {
         created_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at);
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        seq BIGSERIAL,
+        target_type TEXT NOT NULL,
+        target_id TEXT NOT NULL,
+        reporter_id TEXT NOT NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
     `);
+
+    // Additive column migrations for DBs created before a column existed.
+    await this.pool.query(
+      `ALTER TABLE posts ADD COLUMN IF NOT EXISTS hidden INTEGER NOT NULL DEFAULT 0`,
+    );
+    await this.pool.query(
+      `ALTER TABLE items ADD COLUMN IF NOT EXISTS hidden INTEGER NOT NULL DEFAULT 0`,
+    );
 
     await this.seedPlacesIfEmpty();
     await this.seedProductsIfEmpty();
@@ -350,7 +374,7 @@ export class PostgresStore implements Store {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [post.id, post.title, post.content, post.category, post.authorId, post.authorName, post.createdAt, post.updatedAt],
     );
-    return { ...post, likeCount: 0, commentCount: 0, likedByMe: false };
+    return { ...post, likeCount: 0, commentCount: 0, likedByMe: false, hidden: false };
   }
 
   async listPostViews(opts: {
@@ -362,11 +386,12 @@ export class PostgresStore implements Store {
     await this.ready;
     const { limit, offset, currentUserId, category } = opts;
     const params: (string | number)[] = [currentUserId ?? ""];
-    let where = "";
+    const clauses = ["p.hidden = 0"];
     if (category) {
       params.push(category);
-      where = `WHERE p.category = $${params.length}`;
+      clauses.push(`p.category = $${params.length}`);
     }
+    const where = `WHERE ${clauses.join(" AND ")}`;
     params.push(limit + 1);
     const limIdx = params.length;
     params.push(offset);
@@ -387,7 +412,7 @@ export class PostgresStore implements Store {
   ): Promise<PostView[]> {
     await this.ready;
     const { rows } = await this.pool.query(
-      `${POST_VIEW_SELECT} WHERE p.author_id = $2 ORDER BY p.created_at DESC, p.seq DESC`,
+      `${POST_VIEW_SELECT} WHERE p.author_id = $2 AND p.hidden = 0 ORDER BY p.created_at DESC, p.seq DESC`,
       [currentUserId ?? "", authorId],
     );
     return rows.map(mapPostView);
@@ -625,7 +650,7 @@ export class PostgresStore implements Store {
   }): Promise<ItemView[]> {
     await this.ready;
     const params: (string | number)[] = [opts?.currentUserId ?? ""];
-    const clauses: string[] = [];
+    const clauses: string[] = ["i.hidden = 0"];
     if (opts?.category) {
       params.push(opts.category);
       clauses.push(`i.category = $${params.length}`);
@@ -657,7 +682,7 @@ export class PostgresStore implements Store {
   ): Promise<ItemView[]> {
     await this.ready;
     const { rows } = await this.pool.query(
-      `${ITEM_VIEW_SELECT} WHERE i.seller_id = $2 ORDER BY i.created_at DESC, i.seq DESC`,
+      `${ITEM_VIEW_SELECT} WHERE i.seller_id = $2 AND i.hidden = 0 ORDER BY i.created_at DESC, i.seq DESC`,
       [currentUserId ?? "", sellerId],
     );
     return rows.map(mapItemView);
@@ -961,6 +986,61 @@ export class PostgresStore implements Store {
     );
     return rows[0].c;
   }
+
+  // ----- Moderation -----
+  async addReport(data: {
+    targetType: ReportTargetType;
+    targetId: string;
+    reporterId: string;
+    reason: string;
+  }): Promise<Report> {
+    await this.ready;
+    const report: Report = {
+      id: randomUUID(),
+      targetType: data.targetType,
+      targetId: data.targetId,
+      reporterId: data.reporterId,
+      reason: data.reason,
+      createdAt: new Date().toISOString(),
+    };
+    await this.pool.query(
+      `INSERT INTO reports (id, target_type, target_id, reporter_id, reason, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [report.id, report.targetType, report.targetId, report.reporterId, report.reason, report.createdAt],
+    );
+    return report;
+  }
+
+  async listReports(): Promise<ReportView[]> {
+    await this.ready;
+    const { rows } = await this.pool.query(
+      `SELECT r.*,
+         CASE r.target_type WHEN 'post' THEN p.title WHEN 'item' THEN i.title END AS target_title
+       FROM reports r
+       LEFT JOIN posts p ON r.target_type = 'post' AND p.id = r.target_id
+       LEFT JOIN items i ON r.target_type = 'item' AND i.id = r.target_id
+       ORDER BY r.created_at DESC, r.seq DESC`,
+    );
+    return rows.map(mapReportView);
+  }
+
+  async setPostHidden(id: string, hidden: boolean): Promise<boolean> {
+    await this.ready;
+    const res = await this.pool.query(`UPDATE posts SET hidden = $1 WHERE id = $2`, [
+      hidden ? 1 : 0,
+      id,
+    ]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
+  async setItemHidden(id: string, hidden: boolean): Promise<boolean> {
+    await this.ready;
+    const res = await this.pool.query(`UPDATE items SET hidden = $1 WHERE id = $2`, [
+      hidden ? 1 : 0,
+      id,
+    ]);
+    return (res.rowCount ?? 0) > 0;
+  }
 }
 
 // ----- Row shapes + mappers (snake_case rows -> camelCase domain) -----
@@ -998,6 +1078,7 @@ function mapPostView(r: any): PostView {
     likeCount: r.like_count,
     commentCount: r.comment_count,
     likedByMe: r.liked_by_me === true,
+    hidden: r.hidden === 1,
   };
 }
 
@@ -1076,6 +1157,7 @@ function mapItemView(r: any): ItemView {
     ...mapItem(r),
     favoriteCount: r.favorite_count,
     favoritedByMe: r.favorited_by_me === true,
+    hidden: r.hidden === 1,
   };
 }
 
@@ -1165,5 +1247,17 @@ function mapMessage(r: any): Message {
     senderId: r.sender_id,
     text: r.text,
     createdAt: r.created_at,
+  };
+}
+
+function mapReportView(r: any): ReportView {
+  return {
+    id: r.id,
+    targetType: r.target_type as ReportTargetType,
+    targetId: r.target_id,
+    reporterId: r.reporter_id,
+    reason: r.reason,
+    createdAt: r.created_at,
+    targetTitle: r.target_title,
   };
 }

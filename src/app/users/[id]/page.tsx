@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { isAdmin } from "@/lib/admin";
 import { CHAT_ENABLED } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { itemEmoji, statusStyle, won } from "@/lib/itemDisplay";
@@ -74,6 +75,11 @@ export default function UserProfilePage() {
           {CHAT_ENABLED && (
             <Link href="/chats" className="btn btn-sm">
               💬 채팅
+            </Link>
+          )}
+          {isAdmin(user?.username) && (
+            <Link href="/admin/reports" className="btn btn-sm">
+              🚩 신고함
             </Link>
           )}
         </div>

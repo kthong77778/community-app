@@ -25,6 +25,7 @@ export const LIMITS = {
   locationMax: 40,
   priceMax: 100000000,
   messageMax: 1000,
+  reportReasonMax: 300,
 };
 
 export function validateUsername(value: unknown): string | null {

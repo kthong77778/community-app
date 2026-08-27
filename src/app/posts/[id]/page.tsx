@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { isAdmin } from "@/lib/admin";
 import { timeAgo } from "@/lib/format";
 import type { Comment, PostView } from "@/lib/store/types";
 import { LIMITS } from "@/lib/validation";
@@ -59,6 +60,37 @@ export default function PostDetailPage() {
     );
   }
 
+  async function report() {
+    if (!user) {
+      router.push(`/login?next=/posts/${id}`);
+      return;
+    }
+    const reason = prompt("신고 사유를 입력해 주세요 (선택)");
+    if (reason === null) return; // cancelled
+    const res = await fetch(`/api/posts/${id}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    if (res.ok) alert("신고가 접수되었어요. 감사합니다.");
+    else alert((await res.json()).error ?? "신고에 실패했습니다.");
+  }
+
+  async function toggleHide() {
+    if (!post) return;
+    const res = await fetch(`/api/posts/${id}/hide`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hidden: !post.hidden }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setPost((p) => (p ? { ...p, hidden: data.hidden } : p));
+    } else {
+      alert((await res.json()).error ?? "처리에 실패했습니다.");
+    }
+  }
+
   async function deletePost() {
     if (!confirm("이 게시글을 삭제할까요?")) return;
     const res = await fetch(`/api/posts/${id}`, { method: "DELETE" });
@@ -87,6 +119,7 @@ export default function PostDetailPage() {
   }
 
   const isAuthor = user?.id === post.authorId;
+  const admin = isAdmin(user?.username);
 
   return (
     <>
@@ -95,6 +128,7 @@ export default function PostDetailPage() {
       </Link>
 
       <article className="post-detail">
+        {post.hidden && <div className="hidden-badge">🙈 숨겨진 글이에요</div>}
         <span className={`badge badge-${post.category}`} style={{ marginBottom: 10, display: "inline-block" }}>
           {post.category}
         </span>
@@ -126,6 +160,21 @@ export default function PostDetailPage() {
         >
           ♥ 좋아요 {post.likeCount}
         </button>
+
+        {(admin || (user && !isAuthor)) && (
+          <div className="mod-row">
+            {user && !isAuthor && (
+              <button className="report-btn" onClick={report}>
+                🚩 신고
+              </button>
+            )}
+            {admin && (
+              <button className="btn btn-sm" onClick={toggleHide}>
+                {post.hidden ? "숨김 해제" : "숨김 처리"}
+              </button>
+            )}
+          </div>
+        )}
       </article>
 
       <CommentSection

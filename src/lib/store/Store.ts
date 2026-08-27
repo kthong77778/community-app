@@ -16,6 +16,9 @@ import type {
   PostView,
   Product,
   ProductView,
+  Report,
+  ReportTargetType,
+  ReportView,
   Review,
   User,
 } from "./types";
@@ -211,4 +214,20 @@ export interface Store {
   markConversationRead(conversationId: string, userId: string): Promise<void>;
   // Total unread messages across all the user's conversations (for a nav badge).
   getTotalUnread(userId: string): Promise<number>;
+
+  // ----- Moderation (신고 / 숨김) -----
+  // Files a report against a post or item. reason may be "".
+  addReport(data: {
+    targetType: ReportTargetType;
+    targetId: string;
+    reporterId: string;
+    reason: string;
+  }): Promise<Report>;
+  // Admin inbox: all reports newest-first, with the target title (or null).
+  listReports(): Promise<ReportView[]>;
+  // Admin: hide/unhide a post — hidden posts drop out of public lists but the
+  // detail page still loads (so admins/authors can see and unhide). Returns
+  // false if the post does not exist.
+  setPostHidden(id: string, hidden: boolean): Promise<boolean>;
+  setItemHidden(id: string, hidden: boolean): Promise<boolean>;
 }

@@ -41,6 +41,7 @@ export interface PostView extends Post {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+  hidden: boolean; // 관리자가 숨김 처리했는지 — 공개 목록에서 제외됨
 }
 
 // Result of toggling a like.
@@ -114,6 +115,7 @@ export interface Item {
 export interface ItemView extends Item {
   favoriteCount: number;
   favoritedByMe: boolean;
+  hidden: boolean; // 관리자가 숨김 처리했는지 — 공개 목록에서 제외됨
 }
 
 // Result of toggling an item favorite.
@@ -168,6 +170,24 @@ export interface Message {
   senderId: string;
   text: string;
   createdAt: string;
+}
+
+// ----- Moderation (신고 / 숨김) -----
+export type ReportTargetType = "post" | "item";
+
+export interface Report {
+  id: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  reporterId: string;
+  reason: string; // "" when none given
+  createdAt: string;
+}
+
+// A report enriched with the target's title for the admin inbox (null if the
+// target was since deleted).
+export interface ReportView extends Report {
+  targetTitle: string | null;
 }
 
 // A conversation enriched for list/detail, relative to the viewing user:

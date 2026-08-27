@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { timeAgo } from "@/lib/format";
+import { isAdmin } from "@/lib/admin";
 import { CHAT_ENABLED } from "@/lib/features";
 import { itemEmoji, statusStyle, won } from "@/lib/itemDisplay";
 import { ITEM_STATUSES } from "@/lib/marketplace";
@@ -96,6 +97,37 @@ export default function ItemDetailPage() {
     }
   }
 
+  async function report() {
+    if (!user) {
+      router.push(`/login?next=/items/${id}`);
+      return;
+    }
+    const reason = prompt("신고 사유를 입력해 주세요 (선택)");
+    if (reason === null) return;
+    const res = await fetch(`/api/items/${id}/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+    if (res.ok) alert("신고가 접수되었어요. 감사합니다.");
+    else alert((await res.json()).error ?? "신고에 실패했습니다.");
+  }
+
+  async function toggleHide() {
+    if (!item) return;
+    const res = await fetch(`/api/items/${id}/hide`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hidden: !item.hidden }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setItem((it) => (it ? { ...it, hidden: data.hidden } : it));
+    } else {
+      alert((await res.json()).error ?? "처리에 실패했습니다.");
+    }
+  }
+
   async function remove() {
     if (!confirm("이 상품을 삭제할까요?")) return;
     const res = await fetch(`/api/items/${id}`, { method: "DELETE" });
@@ -122,6 +154,7 @@ export default function ItemDetailPage() {
   }
 
   const isSeller = user?.id === item.sellerId;
+  const admin = isAdmin(user?.username);
   const st = statusStyle(item.status);
 
   return (
@@ -138,6 +171,7 @@ export default function ItemDetailPage() {
       )}
 
       <article className="item-detail">
+        {item.hidden && <div className="hidden-badge">🙈 숨겨진 상품이에요</div>}
         <div className="item-detail-top">
           <span className="st-badge" style={{ background: st.bg, color: st.fg }}>
             {item.status}
@@ -201,6 +235,21 @@ export default function ItemDetailPage() {
           >
             💬 채팅하기
           </button>
+        )}
+
+        {(admin || (user && !isSeller)) && (
+          <div className="mod-row">
+            {user && !isSeller && (
+              <button className="report-btn" onClick={report}>
+                🚩 신고
+              </button>
+            )}
+            {admin && (
+              <button className="btn btn-sm" onClick={toggleHide}>
+                {item.hidden ? "숨김 해제" : "숨김 처리"}
+              </button>
+            )}
+          </div>
         )}
       </article>
     </>

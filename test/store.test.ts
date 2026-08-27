@@ -603,6 +603,49 @@ describe("chat (conversations + messages)", () => {
   });
 });
 
+describe("moderation (report / hide)", () => {
+  it("hides a post from feeds but keeps it reachable by id", async () => {
+    const u = await makeUser();
+    const post = await store.createPost({ title: "숨길글", content: "c", category: "자랑", authorId: u.id, authorName: u.username });
+
+    let feed = await store.listPostViews({ limit: 20, offset: 0, currentUserId: null });
+    assert.ok(feed.posts.some((p) => p.id === post.id));
+
+    assert.equal(await store.setPostHidden(post.id, true), true);
+    feed = await store.listPostViews({ limit: 20, offset: 0, currentUserId: null });
+    assert.ok(!feed.posts.some((p) => p.id === post.id), "hidden post drops out of feed");
+
+    const view = await store.getPostView(post.id, null);
+    assert.equal(view?.hidden, true); // still reachable + flagged
+
+    assert.equal(await store.setPostHidden(post.id, false), true);
+    feed = await store.listPostViews({ limit: 20, offset: 0, currentUserId: null });
+    assert.ok(feed.posts.some((p) => p.id === post.id), "unhide restores it");
+  });
+
+  it("hides an item from listings", async () => {
+    const item = await store.createItem({ title: "숨길상품", description: "d", price: 1000, category: "기타", imageUrl: "", location: "서울", sellerId: "s", sellerName: "s" });
+    await store.setItemHidden(item.id, true);
+    assert.ok(!(await store.listItems()).some((i) => i.id === item.id));
+    const got = await store.getItem(item.id);
+    assert.equal(got?.hidden, true);
+  });
+
+  it("files reports and lists them with target titles", async () => {
+    const u = await makeUser();
+    const post = await store.createPost({ title: "신고대상", content: "c", category: "자랑", authorId: u.id, authorName: u.username });
+    await store.addReport({ targetType: "post", targetId: post.id, reporterId: "reporter", reason: "스팸" });
+
+    const reports = await store.listReports();
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0].targetType, "post");
+    assert.equal(reports[0].targetTitle, "신고대상");
+    assert.equal(reports[0].reason, "스팸");
+
+    assert.equal(await store.setPostHidden("missing", true), false);
+  });
+});
+
 describe("comments", () => {
   it("adds, lists, and counts comments", async () => {
     const u = await makeUser();
