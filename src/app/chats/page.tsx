@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { CHAT_ENABLED } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import type { ConversationView } from "@/lib/store/types";
 
@@ -21,7 +22,7 @@ export default function ChatsPage() {
   }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (!CHAT_ENABLED || loading) return;
     if (!user) {
       setStatus("ready");
       return;
@@ -30,6 +31,15 @@ export default function ChatsPage() {
     const iv = setInterval(() => void load(), 5000); // 실시간 갱신
     return () => clearInterval(iv);
   }, [loading, user, load]);
+
+  if (!CHAT_ENABLED) {
+    return (
+      <div className="empty">
+        채팅은 준비 중이에요.
+        <br />곧 만나요! 🐾
+      </div>
+    );
+  }
 
   if (loading || status === "loading") return <p className="muted">불러오는 중...</p>;
 

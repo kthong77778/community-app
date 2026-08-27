@@ -13,6 +13,7 @@ import {
 import { ApiError, apiRequest, imageUri } from "@/api/client";
 import type { Conversation, Item } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
+import { CHAT_ENABLED } from "@/features";
 import { timeAgo } from "@/lib/format";
 import {
   colors,
@@ -216,7 +217,7 @@ export default function ItemDetailScreen() {
 
           <Text style={styles.desc}>{item.description}</Text>
 
-          {!isSeller && (
+          {CHAT_ENABLED && !isSeller && (
             <Pressable style={styles.chatBtn} onPress={startChat}>
               <Text style={styles.chatText}>💬 채팅하기</Text>
             </Pressable>

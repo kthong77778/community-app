@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CHAT_ENABLED } from "@/lib/features";
 import { useAuth } from "./AuthProvider";
 
 export function Header() {
@@ -12,7 +13,7 @@ export function Header() {
 
   // Poll the unread total so the 채팅 link shows a live badge.
   useEffect(() => {
-    if (!user) {
+    if (!user || !CHAT_ENABLED) {
       setUnread(0);
       return;
     }
@@ -59,12 +60,16 @@ export function Header() {
           </Link>
           {loading ? null : user ? (
             <>
-              <Link href="/chats" className="btn btn-sm chat-link">
-                💬 채팅
-                {unread > 0 && (
-                  <span className="nav-badge">{unread > 99 ? "99+" : unread}</span>
-                )}
-              </Link>
+              {CHAT_ENABLED && (
+                <Link href="/chats" className="btn btn-sm chat-link">
+                  💬 채팅
+                  {unread > 0 && (
+                    <span className="nav-badge">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </Link>
+              )}
               <Link
                 href={`/users/${encodeURIComponent(user.username)}`}
                 className="header-user"

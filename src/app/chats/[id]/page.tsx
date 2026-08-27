@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { CHAT_ENABLED } from "@/lib/features";
 import { won } from "@/lib/itemDisplay";
 import type { ConversationView, Message } from "@/lib/store/types";
 
@@ -33,13 +34,13 @@ export default function ChatRoomPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!loading && user) void load();
+    if (CHAT_ENABLED && !loading && user) void load();
   }, [loading, user, load]);
 
   // Poll for new messages while the thread is open (also marks it read server-side).
   // Only swap the array when the count changed, so the scroll effect stays quiet.
   useEffect(() => {
-    if (loading || !user) return;
+    if (!CHAT_ENABLED || loading || !user) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`/api/conversations/${id}`, { cache: "no-store" });
@@ -78,6 +79,18 @@ export default function ChatRoomPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  if (!CHAT_ENABLED) {
+    return (
+      <div className="empty">
+        채팅은 준비 중이에요.
+        <br />
+        <Link href="/" className="btn btn-sm" style={{ marginTop: 12 }}>
+          홈으로
+        </Link>
+      </div>
+    );
   }
 
   if (loading || status === "loading") return <p className="muted">불러오는 중...</p>;

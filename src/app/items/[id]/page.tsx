@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { timeAgo } from "@/lib/format";
+import { CHAT_ENABLED } from "@/lib/features";
 import { itemEmoji, statusStyle, won } from "@/lib/itemDisplay";
 import { ITEM_STATUSES } from "@/lib/marketplace";
 import type { ItemView } from "@/lib/store/types";
@@ -192,7 +193,7 @@ export default function ItemDetailPage() {
 
         <p className="item-desc">{item.description}</p>
 
-        {!isSeller && (
+        {CHAT_ENABLED && !isSeller && (
           <button
             className="btn btn-primary"
             style={{ width: "100%", marginTop: 8 }}

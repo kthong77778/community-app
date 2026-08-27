@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { apiRequest } from "@/api/client";
 import { useAuth } from "@/auth/AuthContext";
+import { CHAT_ENABLED } from "@/features";
 import { colors } from "@/theme";
 
 const TABS = [
@@ -26,7 +27,7 @@ export function BottomNav({
 
   // 로그인 상태에서 총 안 읽음 개수를 마운트 시 + 8초마다 폴링. 실패는 조용히 무시.
   useEffect(() => {
-    if (!user) {
+    if (!user || !CHAT_ENABLED) {
       setUnread(0);
       return;
     }
@@ -53,7 +54,7 @@ export function BottomNav({
 
   return (
     <View style={styles.bar}>
-      {TABS.map((t) => {
+      {TABS.filter((t) => CHAT_ENABLED || t.key !== "chats").map((t) => {
         const on = t.key === active;
         const showBadge = t.key === "chats" && !!user && unread > 0;
         return (

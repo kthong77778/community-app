@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { CHAT_ENABLED } from "@/lib/features";
 import { timeAgo } from "@/lib/format";
 import { itemEmoji, statusStyle, won } from "@/lib/itemDisplay";
 import type { ItemView, PostView } from "@/lib/store/types";
@@ -70,9 +71,11 @@ export default function UserProfilePage() {
           <Link href="/map?favorited=1" className="btn btn-sm">
             ♥ 찜한 곳
           </Link>
-          <Link href="/chats" className="btn btn-sm">
-            💬 채팅
-          </Link>
+          {CHAT_ENABLED && (
+            <Link href="/chats" className="btn btn-sm">
+              💬 채팅
+            </Link>
+          )}
         </div>
       )}
 
