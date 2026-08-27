@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { ApiError, apiRequest } from "@/api/client";
+import { isAdmin } from "@/admin";
 import type { Comment, PostView } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
@@ -100,6 +101,44 @@ export default function PostDetailScreen() {
     ]);
   }
 
+  function reportPost() {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    Alert.alert("게시글 신고", "이 게시글을 신고할까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "신고",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiRequest(`/api/posts/${id}/report`, {
+              method: "POST",
+              body: { reason: "" },
+            });
+            Alert.alert("신고 접수", "신고가 접수되었어요.");
+          } catch (err) {
+            Alert.alert("오류", errorMessage(err));
+          }
+        },
+      },
+    ]);
+  }
+
+  async function toggleHidden() {
+    if (!post) return;
+    try {
+      const data = await apiRequest<{ hidden: boolean }>(
+        `/api/posts/${id}/hide`,
+        { method: "POST", body: { hidden: !post.hidden } },
+      );
+      setPost((p) => (p ? { ...p, hidden: data.hidden } : p));
+    } catch (err) {
+      Alert.alert("오류", errorMessage(err));
+    }
+  }
+
   async function submitComment() {
     const text = comment.trim();
     if (!text) return;
@@ -153,6 +192,7 @@ export default function PostDetailScreen() {
   }
 
   const isAuthor = user?.id === post.authorId;
+  const admin = isAdmin(user?.username);
 
   return (
     <KeyboardAvoidingView
@@ -172,6 +212,11 @@ export default function PostDetailScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.postCard}>
+          {post.hidden && (
+            <View style={styles.hiddenBadge}>
+              <Text style={styles.hiddenBadgeText}>🙈 숨겨진 콘텐츠</Text>
+            </View>
+          )}
           <View style={[styles.badge, { backgroundColor: catStyle(post.category).bg }]}>
             <Text style={[styles.badgeText, { color: catStyle(post.category).fg }]}>
               {post.category}
@@ -202,6 +247,23 @@ export default function PostDetailScreen() {
               ♥ 좋아요 {post.likeCount}
             </Text>
           </Pressable>
+
+          {(admin || !isAuthor) && (
+            <View style={styles.modRow}>
+              {admin && (
+                <Pressable onPress={toggleHidden} hitSlop={8}>
+                  <Text style={styles.modLink}>
+                    {post.hidden ? "숨김 해제" : "숨김"}
+                  </Text>
+                </Pressable>
+              )}
+              {!isAuthor && (
+                <Pressable onPress={reportPost} hitSlop={8}>
+                  <Text style={styles.reportLink}>🚩 신고</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>댓글 {comments.length}</Text>
@@ -348,4 +410,23 @@ const styles = StyleSheet.create({
   deleteLink: { color: colors.danger, fontSize: 14, fontWeight: "600" },
   muted: { color: colors.textMuted, fontSize: 14, paddingVertical: 8 },
   mutedPad: { color: colors.textMuted, fontSize: 14, paddingVertical: 16 },
+  hiddenBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  hiddenBadgeText: { fontSize: 12, fontWeight: "700", color: colors.textMuted },
+  modRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 16,
+  },
+  modLink: { fontSize: 13, fontWeight: "600", color: colors.primaryStrong },
+  reportLink: { fontSize: 13, color: colors.textMuted },
 });

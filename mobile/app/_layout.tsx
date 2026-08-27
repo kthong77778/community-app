@@ -31,6 +31,7 @@ export default function RootLayout() {
           <Stack.Screen name="new" options={{ title: "글쓰기", presentation: "modal" }} />
           <Stack.Screen name="post/[id]" options={{ title: "게시글" }} />
           <Stack.Screen name="user/[id]" options={{ title: "프로필" }} />
+          <Stack.Screen name="admin/reports" options={{ title: "신고함" }} />
           <Stack.Screen name="login" options={{ title: "로그인" }} />
         </Stack>
       </AuthProvider>

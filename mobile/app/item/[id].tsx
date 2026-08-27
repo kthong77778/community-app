@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { ApiError, apiRequest, imageUri } from "@/api/client";
+import { isAdmin } from "@/admin";
 import type { Conversation, Item } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { CHAT_ENABLED } from "@/features";
@@ -105,6 +106,44 @@ export default function ItemDetailScreen() {
     }
   }
 
+  function reportItem() {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    Alert.alert("상품 신고", "이 상품을 신고할까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "신고",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiRequest(`/api/items/${id}/report`, {
+              method: "POST",
+              body: { reason: "" },
+            });
+            Alert.alert("신고 접수", "신고가 접수되었어요.");
+          } catch (err) {
+            Alert.alert("오류", err instanceof ApiError ? err.message : "신고 실패");
+          }
+        },
+      },
+    ]);
+  }
+
+  async function toggleHidden() {
+    if (!item) return;
+    try {
+      const data = await apiRequest<{ hidden: boolean }>(
+        `/api/items/${id}/hide`,
+        { method: "POST", body: { hidden: !item.hidden } },
+      );
+      setItem((cur) => (cur ? { ...cur, hidden: data.hidden } : cur));
+    } catch (err) {
+      Alert.alert("오류", err instanceof ApiError ? err.message : "숨김 처리 실패");
+    }
+  }
+
   function confirmDelete() {
     Alert.alert("상품 삭제", "이 상품을 삭제할까요?", [
       { text: "취소", style: "cancel" },
@@ -139,6 +178,7 @@ export default function ItemDetailScreen() {
   }
 
   const isSeller = user?.id === item.sellerId;
+  const admin = isAdmin(user?.username);
   const st = statusStyle(item.status);
 
   return (
@@ -154,6 +194,11 @@ export default function ItemDetailScreen() {
         )}
 
         <View style={styles.detail}>
+          {item.hidden && (
+            <View style={styles.hiddenBadge}>
+              <Text style={styles.hiddenBadgeText}>🙈 숨겨진 콘텐츠</Text>
+            </View>
+          )}
           <View style={styles.top}>
             <View style={[styles.stBadge, { backgroundColor: st.bg }]}>
               <Text style={[styles.stBadgeText, { color: st.fg }]}>{item.status}</Text>
@@ -221,6 +266,23 @@ export default function ItemDetailScreen() {
             <Pressable style={styles.chatBtn} onPress={startChat}>
               <Text style={styles.chatText}>💬 채팅하기</Text>
             </Pressable>
+          )}
+
+          {(admin || !isSeller) && (
+            <View style={styles.modRow}>
+              {admin && (
+                <Pressable onPress={toggleHidden} hitSlop={8}>
+                  <Text style={styles.modLink}>
+                    {item.hidden ? "숨김 해제" : "숨김"}
+                  </Text>
+                </Pressable>
+              )}
+              {!isSeller && (
+                <Pressable onPress={reportItem} hitSlop={8}>
+                  <Text style={styles.reportLink}>🚩 신고</Text>
+                </Pressable>
+              )}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -296,4 +358,23 @@ const styles = StyleSheet.create({
   },
   chatText: { color: colors.primaryText, fontWeight: "700", fontSize: 15 },
   muted: { color: colors.textMuted, fontSize: 14 },
+  hiddenBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  hiddenBadgeText: { fontSize: 12, fontWeight: "700", color: colors.textMuted },
+  modRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 18,
+  },
+  modLink: { fontSize: 13, fontWeight: "600", color: colors.primaryStrong },
+  reportLink: { fontSize: 13, color: colors.textMuted },
 });

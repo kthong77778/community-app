@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { apiRequest, imageUri } from "@/api/client";
+import { isAdmin } from "@/admin";
 import type { Item, PostView } from "@/api/types";
 import { useAuth } from "@/auth/AuthContext";
 import { timeAgo } from "@/lib/format";
@@ -92,6 +93,14 @@ export default function UserProfileScreen() {
           <Text style={styles.counts}>
             글 {profile.postCount} · 판매 {profile.itemCount}
           </Text>
+          {isMe && isAdmin(user?.username) && (
+            <Pressable
+              style={styles.reportsBtn}
+              onPress={() => router.push("/admin/reports")}
+            >
+              <Text style={styles.reportsText}>🚩 신고함</Text>
+            </Pressable>
+          )}
           {isMe && (
             <Pressable style={styles.logoutBtn} onPress={onLogout}>
               <Text style={styles.logoutText}>로그아웃</Text>
@@ -208,6 +217,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   logoutText: { color: colors.text, fontWeight: "600", fontSize: 14 },
+  reportsBtn: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.primarySoft,
+  },
+  reportsText: { color: colors.primaryStrong, fontWeight: "700", fontSize: 14 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",

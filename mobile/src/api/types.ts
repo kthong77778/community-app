@@ -17,6 +17,7 @@ export interface PostView {
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+  hidden?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,12 +75,29 @@ export interface Item {
   location: string;
   sellerId: string;
   sellerName: string;
+  hidden?: boolean;
   createdAt: string;
   updatedAt: string;
   // Favorite (찜) aggregates for the current viewer. Optional so older
   // responses / list endpoints without a viewer still type-check.
   favoriteCount?: number;
   favoritedByMe?: boolean;
+}
+
+// 모더레이션 — 신고(신고 대상: 글/상품)와 관리자 신고함 뷰.
+export type ReportTargetType = "post" | "item";
+
+export interface Report {
+  id: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  reporterId: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface ReportView extends Report {
+  targetTitle: string | null;
 }
 
 // 쇼핑/물품 비교 — 카탈로그 상품과 판매처 오퍼.
