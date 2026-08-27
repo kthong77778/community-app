@@ -87,6 +87,15 @@
 - 프로필: 회원가입 없음(하드코딩 로그인 유지) — 사용자 활동 집계 뷰. `listPostsByAuthor`·`listItemsBySeller` Store, `GET /api/users/[id]`(글·판매상품). 웹 `src/app/users/[id]/page.tsx`(본인이면 찜·채팅 바로가기+로그아웃), 모바일 `mobile/app/user/[id].tsx`. 헤더/상세의 작성자·판매자 이름이 프로필 링크.
 - 이미지 업로드: `POST /api/upload`(멀티파트→`UPLOAD_DIR`(기본 public/uploads), 이미지·5MB 검증). 웹 판매등록 파일선택, 모바일 `expo-image-picker`+`uploadImage()`/`imageUri()`(상대경로→절대 URL). 서버리스는 오브젝트 스토리지 필요(DEPLOY.md).
 
+### 모더레이션 (신고 / 관리자 숨김)
+- 관리자: `src/lib/admin.ts`(`ADMIN_USERNAMES`=admin·댕냥마을지기, `isAdmin`). 클라는 UI 노출용, **권한은 서버가 강제**. 모바일 `mobile/src/admin.ts`, 프리뷰 `ADMIN_USERNAMES`.
+- 데이터: `reports` 테이블 + posts/items `hidden` 컬럼(공개 목록 제외, 상세는 유지). Store `addReport`·`listReports`·`setPostHidden`·`setItemHidden`.
+- API: `POST /api/{posts,items}/[id]/report`(로그인), `/hide`(관리자), `GET /api/admin/reports`(관리자).
+- 웹: 글/상품 상세 🚩신고·관리자 숨김 토글·🙈배지, `src/app/admin/reports/page.tsx` 신고함. 모바일 `mobile/app/admin/reports.tsx`. 프리뷰 `#/reports`.
+
+### 배포 / 운영
+- `DEPLOY.md`(Docker·Render `render.yaml`·Railway·Postgres 전환), `OPERATIONS.md`(백업·모니터링·정기점검), `GET /api/health` 헬스체크.
+
 ### 공통 네비/인프라
 - 모바일 하단탭: `mobile/src/components/BottomNav.tsx`(커뮤니티/지도/중고거래, `replace`), 화면 등록: `mobile/app/_layout.tsx`
 - 모바일 API/인증: `mobile/src/api/client.ts`(PATCH 포함), `mobile/src/api/types.ts`, `mobile/src/auth/AuthContext.tsx`
