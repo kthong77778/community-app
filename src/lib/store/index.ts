@@ -1,3 +1,4 @@
+import { PostgresStore } from "./postgres-store";
 import { DEFAULT_DB_PATH, SqliteStore } from "./sqlite-store";
 import type { Store } from "./Store";
 
@@ -16,8 +17,14 @@ const globalForStore = globalThis as unknown as { __store?: Store };
 
 export function getStore(): Store {
   if (!globalForStore.__store) {
-    const path = process.env.SQLITE_PATH || DEFAULT_DB_PATH;
-    globalForStore.__store = new SqliteStore(path);
+    // DATABASE_URL present → Postgres (serverless / multi-instance deploys);
+    // otherwise the file-backed SQLite store (local dev, persistent-disk hosts).
+    if (process.env.DATABASE_URL) {
+      globalForStore.__store = new PostgresStore(process.env.DATABASE_URL);
+    } else {
+      const path = process.env.SQLITE_PATH || DEFAULT_DB_PATH;
+      globalForStore.__store = new SqliteStore(path);
+    }
   }
   return globalForStore.__store;
 }

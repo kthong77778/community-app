@@ -10,8 +10,10 @@
     "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@types/pg": "^8.23.1",
     "better-sqlite3": "^11.10.0",
     "next": "^16.3.3",
+    "pg": "^8.23.0",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
